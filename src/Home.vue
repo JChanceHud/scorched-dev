@@ -27,6 +27,14 @@
           {{ $store.state.scorched.connected ? 'Connected' : 'Not Connected' }}
         </div>
       </div>
+      <div style="margin: 4px 0px" v-if="$store.state.scorched.channel">
+        <div>Channel ID: {{ $store.state.scorched.channel.id }}</div>
+        <div>Suggester: {{ $store.state.scorched.channel.participants[1] }}</div>
+      </div>
+      <MessageCell
+        v-for="message of $store.state.scorched.messages"
+        :message="message"
+      />
     </div>
   </div>
 </template>
@@ -36,10 +44,11 @@ import Vue from 'vue'
 import Component from 'vue-class-component'
 import { ethers } from 'ethers'
 import { ScorchedABI } from 'scorched'
+import MessageCell from './components/MessageCell'
 
 @Component({
   name: 'Home',
-  components: {},
+  components: { MessageCell, },
   metaInfo: {
     title: 'Scorched dev',
   },
