@@ -57,8 +57,8 @@ export default {
       state.channel = data
       // subscribe to future messages
       const subscriptionId = uuid.v4()
-      state.client.listen(subscriptionId, (err, message) => {
-        commit('ingestMessages', message)
+      state.client.listen(subscriptionId, (err, { data }) => {
+        commit('ingestMessages', data)
       })
       const { data: subscription } = await state.client.send('channel.subscribe', {
         owner: rootState.wallet.activeAddress,
@@ -70,6 +70,17 @@ export default {
         channelId: state.channel.id,
       })
       commit('ingestMessages', messages)
+    },
+    sendMessage: async ({ state, rootState }, text) => {
+      if (!state.connected || !state.channel) throw new Error('No valid connection')
+      await state.client.send('channel.send', {
+        channelId: state.channel.id,
+        message: {
+          type: 0,
+          text,
+          from: rootState.wallet.activeAddress
+        }
+      })
     }
   },
 }

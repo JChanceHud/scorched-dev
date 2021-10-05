@@ -31,6 +31,10 @@
         <div>Channel ID: {{ $store.state.scorched.channel.id }}</div>
         <div>Suggester: {{ $store.state.scorched.channel.participants[1] }}</div>
       </div>
+      <div style="margin: 4px 0px" v-if="$store.state.scorched.channel">
+        <input type="text" placeholder="Send a message..." v-model="messageText" />
+        <button v-on:click="sendMessage">Send</button>
+      </div>
       <MessageCell
         v-for="message of $store.state.scorched.messages"
         :message="message"
@@ -55,9 +59,15 @@ import MessageCell from './components/MessageCell'
 })
 export default class Home extends Vue {
   suggesterUrl = ''
+  messageText = ''
 
   async connect() {
     await this.$store.dispatch('connect', this.suggesterUrl)
+  }
+
+  async sendMessage() {
+    await this.$store.dispatch('sendMessage', this.messageText)
+    this.messageText = ''
   }
 }
 </script>
