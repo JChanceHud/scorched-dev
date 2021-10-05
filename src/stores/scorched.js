@@ -11,6 +11,7 @@ export default {
     info: {},
     channel: undefined,
     messages: [],
+    auth: undefined,
   },
   mutations: {
     ingestMessages: (state, _messages) => {
@@ -42,6 +43,8 @@ export default {
       })
       const { data, message, status } = await state.client.send('info')
       state.info = data
+      await dispatch('authenticate')
+      // get the authentication string
       await dispatch('initChannel')
     },
     disconnect: async ({ state }, payload) => {
@@ -49,10 +52,38 @@ export default {
       state.client.disconnect()
       state.client = undefined
     },
+    authenticate: async ({ state, dispatch }) => {
+      const timestamp = `${+new Date()}`
+      const msgParams = {
+        domain: {
+          chainId: 5,
+          name: 'Scorched Auth',
+          version: '0',
+        },
+        value: {
+          info: 'Authenticate',
+          details: 'Sign this message to authenticate with the suggester server',
+          timestamp,
+        },
+        primaryType: 'ScorchedAuth',
+        types: {
+          ScorchedAuth: [
+            { name: 'info', type: 'string', },
+            { name: 'details', type: 'string', },
+            { name: 'timestamp', type: 'string', },
+          ]
+        }
+      }
+      const signature = await dispatch('sign', msgParams, { root: true })
+      state.auth = {
+        signature,
+        timestamp,
+      }
+    },
     initChannel: async ({ state, commit, rootState }) => {
       if (!state.client || !state.connected) return
       const { data } = await state.client.send('channel.retrieve', {
-        asker: rootState.wallet.activeAddress,
+        auth: state.auth,
       })
       state.channel = data
       // subscribe to future messages
@@ -61,13 +92,13 @@ export default {
         commit('ingestMessages', data)
       })
       const { data: subscription } = await state.client.send('channel.subscribe', {
-        owner: rootState.wallet.activeAddress,
         channelId: state.channel.id,
         subscriptionId,
+        auth: state.auth,
       })
       const { data: messages } = await state.client.send('channel.messages', {
-        asker: rootState.wallet.activeAddress,
         channelId: state.channel.id,
+        auth: state.auth,
       })
       commit('ingestMessages', messages)
     },
@@ -75,10 +106,10 @@ export default {
       if (!state.connected || !state.channel) throw new Error('No valid connection')
       await state.client.send('channel.send', {
         channelId: state.channel.id,
+        auth: state.auth,
         message: {
           type: 0,
           text,
-          from: rootState.wallet.activeAddress
         }
       })
     }

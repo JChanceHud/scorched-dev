@@ -38,6 +38,7 @@
       <MessageCell
         v-for="message of $store.state.scorched.messages"
         :message="message"
+        :key="message.timestamp"
       />
     </div>
   </div>
