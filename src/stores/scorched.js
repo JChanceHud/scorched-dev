@@ -9,17 +9,22 @@ export default {
     wsAddress: '',
     client: undefined,
     info: {},
-    channel: undefined,
-    messages: [],
+    channels: [],
+    channelsById: {},
+    messagesByChannelId: {},
     auth: undefined,
   },
   mutations: {
-    ingestMessages: (state, _messages) => {
+    ingestMessages: (state, { channelId, messages: _messages }) => {
       // can pass a single message or an arry
       const messages = [_messages].flat()
-      const newMessages = [...state.messages, ...messages]
+      state.messagesByChannelId[channelId] = state.messagesByChannelId[channelId] || []
+      const newMessages = [...state.messagesByChannelId[channelId], ...messages]
         .sort((a, b) => a.timestamp - b.timestamp)
-      state.messages = newMessages
+      state.messagesByChannelId = {
+        ...state.messagesByChannelId,
+        [channelId]: newMessages,
+      }
     }
   },
   actions: {
@@ -52,7 +57,7 @@ export default {
       state.client.disconnect()
       state.client = undefined
     },
-    authenticate: async ({ state, dispatch }) => {
+    authenticate: async ({ state, rootState, dispatch }) => {
       const timestamp = `${+new Date()}`
       const msgParams = {
         domain: {
@@ -65,7 +70,6 @@ export default {
           details: 'Sign this message to authenticate with the suggester server',
           timestamp,
         },
-        primaryType: 'ScorchedAuth',
         types: {
           ScorchedAuth: [
             { name: 'info', type: 'string', },
@@ -78,34 +82,49 @@ export default {
       state.auth = {
         signature,
         timestamp,
+        address: rootState.wallet.activeAddress,
       }
     },
-    initChannel: async ({ state, commit, rootState }) => {
+    initChannel: async ({ state, dispatch, rootState }) => {
       if (!state.client || !state.connected) return
       const { data } = await state.client.send('channel.retrieve', {
         auth: state.auth,
       })
-      state.channel = data
+      state.channels = data
+      state.channelsById = [...data].reduce((acc, channel) => {
+        return { ...acc, [channel.id]: channel }
+      }, {})
+      for (const { id } of data) {
+        await dispatch('loadChannelMessages', id)
+      }
+    },
+    loadChannelMessages: async ({ state, commit, }, channelId) => {
       // subscribe to future messages
       const subscriptionId = uuid.v4()
       state.client.listen(subscriptionId, (err, { data }) => {
-        commit('ingestMessages', data)
+        commit('ingestMessages', {
+          channelId: data.channelId,
+          messages: data.message,
+        })
       })
       const { data: subscription } = await state.client.send('channel.subscribe', {
-        channelId: state.channel.id,
+        channelId,
         subscriptionId,
         auth: state.auth,
       })
       const { data: messages } = await state.client.send('channel.messages', {
-        channelId: state.channel.id,
+        channelId,
         auth: state.auth,
       })
-      commit('ingestMessages', messages)
+      commit('ingestMessages', {
+        messages,
+        channelId,
+      })
     },
-    sendMessage: async ({ state, rootState }, text) => {
-      if (!state.connected || !state.channel) throw new Error('No valid connection')
+    sendMessage: async ({ state, rootState }, { text, channelId }) => {
+      if (!state.connected) throw new Error('No valid connection')
       await state.client.send('channel.send', {
-        channelId: state.channel.id,
+        channelId,
         auth: state.auth,
         message: {
           type: 0,

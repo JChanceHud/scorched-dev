@@ -27,19 +27,28 @@
           {{ $store.state.scorched.connected ? 'Connected' : 'Not Connected' }}
         </div>
       </div>
-      <div style="margin: 4px 0px" v-if="$store.state.scorched.channel">
-        <div>Channel ID: {{ $store.state.scorched.channel.id }}</div>
-        <div>Suggester: {{ $store.state.scorched.channel.participants[1] }}</div>
+      <div style="display: flex">
+        <div style="max-width: 100px; word-break: break-all">
+          <div v-for="channel of $store.state.scorched.channels">
+            {{ channel.id }}
+          </div>
+        </div>
+        <div>
+          <div style="margin: 4px 0px" v-if="$store.state.scorched.channelsById[selectedChannelId]">
+            <div>Channel ID: {{ selectedChannelId }}</div>
+            <div>Suggester: {{ $store.state.scorched.channelsById[selectedChannelId].participants[1] }}</div>
+          </div>
+          <div style="margin: 4px 0px" v-if="$store.state.scorched.channelsById[selectedChannelId]">
+            <input type="text" placeholder="Send a message..." v-model="messageText" />
+            <button v-on:click="sendMessage">Send</button>
+          </div>
+          <MessageCell
+            v-for="message of $store.state.scorched.messagesByChannelId[selectedChannelId]"
+            :message="message"
+            :key="message.timestamp"
+          />
+        </div>
       </div>
-      <div style="margin: 4px 0px" v-if="$store.state.scorched.channel">
-        <input type="text" placeholder="Send a message..." v-model="messageText" />
-        <button v-on:click="sendMessage">Send</button>
-      </div>
-      <MessageCell
-        v-for="message of $store.state.scorched.messages"
-        :message="message"
-        :key="message.timestamp"
-      />
     </div>
   </div>
 </template>
@@ -61,13 +70,20 @@ import MessageCell from './components/MessageCell'
 export default class Home extends Vue {
   suggesterUrl = ''
   messageText = ''
+  selectedChannelId = ''
 
   async connect() {
     await this.$store.dispatch('connect', this.suggesterUrl)
+    if (this.$store.state.scorched.channels.length) {
+      this.selectedChannelId = this.$store.state.scorched.channels[0].id
+    }
   }
 
   async sendMessage() {
-    await this.$store.dispatch('sendMessage', this.messageText)
+    await this.$store.dispatch('sendMessage', {
+      text: this.messageText,
+      channelId: this.selectedChannelId,
+    })
     this.messageText = ''
   }
 }
