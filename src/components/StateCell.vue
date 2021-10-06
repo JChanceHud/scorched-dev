@@ -1,12 +1,14 @@
 <template>
-  <div class="message-cell-container">
-    <div class="timestamp-text">
-      {{ dayjs().to(dayjs(message.timestamp)) }}
-    </div>
-    <div v-if="message.type === 0" style="word-break: break-word">
+  <div class="state-cell-container">
+    <!-- <div v-if="state.type === 0" style="word-break: break-word">
       {{ message.text }}
+    </div> -->
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <div style="font-weight: bold; font-size: 21px">
+        Turn #{{ state.turnNum }}
+      </div>
     </div>
-    <div v-if="message.type === 1">
+    <div v-if="state">
       Channel Created
     </div>
   </div>
@@ -23,16 +25,19 @@ dayjs.extend(relativeTime)
 @Component({
   name: 'MessageCell',
   props: [
-    'message',
+    'state',
   ],
 })
 export default class MessageCell extends Vue {
   dayjs = dayjs
+  mounted() {
+    console.log(this.state)
+  }
 }
 </script>
 
 <style scoped>
-.message-cell-container {
+.state-cell-container {
   border: 1px solid black;
   border-radius: 2px;
   padding: 4px;

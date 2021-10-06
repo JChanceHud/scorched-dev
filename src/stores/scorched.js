@@ -1,7 +1,8 @@
 import EspecialClient from 'especial/client'
 import * as uuid from 'uuid'
+import { signStates } from '@statechannels/nitro-protocol'
 
-const SCORCHED_ADDRESS = '0xCAe4060F3d87Faca6506a49B12Ea94305E51a16d'
+const SCORCHED_ADDRESS = '0x6e64a91e1F41bd069984716a806034881D5c9Da8'
 
 export default {
   state: {
@@ -130,6 +131,19 @@ export default {
           type: 0,
           text,
         }
+      })
+    },
+    signAndSubmitState: async ({ rootState, state }, { channelId, state: _state }) => {
+      const [signature] = await signStates(
+        [_state],
+        [rootState.wallet.signer],
+        [0]
+      )
+      await state.client.send('channel.submitSignedState', {
+        channelId,
+        auth: state.auth,
+        state: _state,
+        signature,
       })
     }
   },

@@ -13,6 +13,7 @@
   "author": "Chance Hudson",
   "license": "MIT",
   "dependencies": {
+    "@statechannels/nitro-protocol": "^0.17.3",
     "axios": "^0.20.0",
     "compression": "^1.7.4",
     "dayjs": "^1.10.7",
