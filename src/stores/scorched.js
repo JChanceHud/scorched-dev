@@ -1,6 +1,15 @@
 import EspecialClient from 'especial/client'
 import * as uuid from 'uuid'
-import { signStates } from '@statechannels/nitro-protocol'
+import {
+  signStates,
+  getFixedPart,
+  getVariablePart,
+} from '@statechannels/nitro-protocol'
+import { ethers } from 'ethers'
+import {
+  ScorchedABI,
+  AdjudicatorABI,
+} from 'scorched'
 
 const SCORCHED_ADDRESS = '0x6e64a91e1F41bd069984716a806034881D5c9Da8'
 
@@ -25,6 +34,16 @@ export default {
       state.messagesByChannelId = {
         ...state.messagesByChannelId,
         [channelId]: newMessages,
+      }
+    },
+    ingestState: (state, { channelId, state: _state, signature }) => {
+      const channel = state.channels.find(({ id }) => id === channelId)
+      if (!channel) throw new Error('Unable to find channel')
+      channel.states.push(_state)
+      channel.signatures.push(signature)
+      state.channelsById = {
+        ...state.channelsById,
+        [channelId]: channel,
       }
     }
   },
@@ -103,10 +122,16 @@ export default {
       // subscribe to future messages
       const subscriptionId = uuid.v4()
       state.client.listen(subscriptionId, (err, { data }) => {
-        commit('ingestMessages', {
-          channelId: data.channelId,
-          messages: data.message,
-        })
+        const { message, state: _state, signature } = data
+        if (message) {
+          commit('ingestMessages', {
+            channelId: data.channelId,
+            messages: data.message,
+          })
+        }
+        if (_state && signature) {
+          commit('ingestState', { channelId, state: _state, signature })
+        }
       })
       const { data: subscription } = await state.client.send('channel.subscribe', {
         channelId,
@@ -145,6 +170,43 @@ export default {
         state: _state,
         signature,
       })
+    },
+    createCheckpoint: async ({ rootState, state }, channelId) => {
+      // we'll use the latest two states
+      const channel = state.channelsById[channelId]
+      if (!channel) throw new Error(`Unable to find channel by id "${channelId}"`)
+      if (channel.states.length !== channel.signatures.length)
+        throw new Error(`Mismatch between states length and signatures length`)
+      if (channel.states.length < 2)
+        throw new Error(`Not enough states to create checkpoint`)
+      const states = channel.states.slice(-2)
+      const signatures = channel.signatures.slice(-2)
+      const whoSignedWhat = []
+      const orderedSignatures = []
+      if (states[0].turnNum % 2 === 0) {
+        whoSignedWhat.push(0, 1)
+        orderedSignatures.push(...signatures)
+      } else {
+        whoSignedWhat.push(1, 0)
+        orderedSignatures.push(...signatures.reverse())
+      }
+      const { baseState } = channel
+      const contractAddress = baseState.appDefinition
+      const contract = new ethers.Contract(contractAddress, ScorchedABI, rootState.wallet.signer)
+      const adjudicatorAddress = await contract.assetHolder()
+      const adjudicator = new ethers.Contract(adjudicatorAddress, AdjudicatorABI, rootState.wallet.signer)
+      console.log(states)
+      console.log(whoSignedWhat)
+      console.log(orderedSignatures)
+      const tx = await adjudicator.checkpoint(
+        getFixedPart(states[1]),
+        states[1].turnNum,
+        states.map((s) => getVariablePart(s)),
+        0,
+        orderedSignatures,
+        whoSignedWhat,
+      )
+      await tx.wait()
     }
   },
 }

@@ -10,12 +10,13 @@ export default {
   },
   mutations: {},
   actions: {
-    load: async ({ state }) => {
+    load: async ({ state, dispatch }) => {
       if (!window.ethereum) return
       await window.ethereum.request({ method: 'eth_requestAccounts' })
       state.provider = new ethers.providers.Web3Provider(window.ethereum)
       state.signer = state.provider.getSigner()
       state.activeAddress = await state.signer.getAddress()
+      dispatch('loadIcon', state.activeAddress, { root: true })
       state.network = await state.provider.getNetwork()
       console.log(state.network)
     },

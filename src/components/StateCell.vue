@@ -5,11 +5,30 @@
     </div> -->
     <div style="display: flex; align-items: center; justify-content: space-between">
       <div style="font-weight: bold; font-size: 21px">
-        Turn #{{ state.turnNum }}
+        State #{{ state.turnNum }}
+      </div>
+      <div>
+        <img width="32" height="auto" :src="$store.state.icon.iconsByAddress[stateOwner]" />
       </div>
     </div>
-    <div v-if="state">
-      Channel Created
+    <div v-if="state.turnNum < 2">
+      Post Deposit Checkpoint
+    </div>
+    <div v-if="parsedData && parsedData.status === 0">
+      <span style="font-size: 18px; font-weight: bold">Negotiating Payment</span>
+    </div>
+    <div v-if="parsedData && parsedData.status === 1">
+      <span v-if="parsedData.queryStatus === 1" style="font-size: 18px; font-weight: bold">Suggester Accepted</span>
+      <span v-if="parsedData.queryStatus === 2" style="font-size: 18px; font-weight: bold">Suggester Declined</span>
+    </div>
+    <div v-if="parsedData && parsedData.status === 2">
+      <span v-if="parsedData.responseStatus === 1" style="font-size: 18px; font-weight: bold">Asker Paid</span>
+      <span v-if="parsedData.responseStatus === 2" style="font-size: 18px; font-weight: bold">Asker Burned</span>
+    </div>
+    <div v-if="parsedData && parsedData.status === 0">
+      <div>Payment: {{ parsedData.payment.toString() }} wei</div>
+      <div>Asker Burn: {{ parsedData.askerBurn.toString() }} wei</div>
+      <div>Suggester Burn: {{ parsedData.suggesterBurn.toString() }} wei</div>
     </div>
   </div>
 </template>
@@ -19,6 +38,8 @@ import Vue from 'vue'
 import Component from 'vue-class-component'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import dayjs from 'dayjs'
+import { ethers } from 'ethers'
+import { decodeAppData, QueryStatus } from 'scorched'
 
 dayjs.extend(relativeTime)
 
@@ -26,12 +47,44 @@ dayjs.extend(relativeTime)
   name: 'MessageCell',
   props: [
     'state',
+    'channel',
   ],
+  computed: {
+    parsedData: function () {
+      try {
+        const [[
+          payment,
+          suggesterBurn,
+          askerBurn,
+          status,
+          queryStatus,
+          responseStatus,
+        ]] = decodeAppData(this.state.appData)
+        return {
+          payment,
+          suggesterBurn,
+          askerBurn,
+          status: +status.toString(),
+          queryStatus: +queryStatus.toString(),
+          responseStatus: +responseStatus.toString(),
+        }
+      } catch (_) {
+        return
+      }
+    },
+    stateOwner: function () {
+      return this.channel.participants[this.state.turnNum % 2]
+    }
+  }
 })
 export default class MessageCell extends Vue {
   dayjs = dayjs
+  parsedData = undefined
+  QueryStatus = QueryStatus
   mounted() {
     console.log(this.state)
+    console.log(this.parsedData)
+    this.$store.dispatch('loadIcon', this.stateOwner)
   }
 }
 </script>
