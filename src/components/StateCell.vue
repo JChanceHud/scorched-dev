@@ -12,7 +12,10 @@
       </div>
     </div>
     <div v-if="state.turnNum < 2">
-      Post Deposit Checkpoint
+      Pre Deposit
+    </div>
+    <div v-if="state.turnNum > 1 && state.turnNum < 4">
+      Post Deposit
     </div>
     <div v-if="parsedData && parsedData.status === 0">
       <span style="font-size: 18px; font-weight: bold">Negotiating Payment</span>
@@ -26,9 +29,9 @@
       <span v-if="parsedData.responseStatus === 2" style="font-size: 18px; font-weight: bold">Asker Burned</span>
     </div>
     <div v-if="parsedData && parsedData.status === 0">
-      <div>Payment: {{ parsedData.payment.toString() }} wei</div>
-      <div>Asker Burn: {{ parsedData.askerBurn.toString() }} wei</div>
-      <div>Suggester Burn: {{ parsedData.suggesterBurn.toString() }} wei</div>
+      <div>Payment: {{ ethers.utils.formatUnits(parsedData.payment, 'ether') }} Ether</div>
+      <div>Asker Burn: {{ ethers.utils.formatUnits(parsedData.askerBurn, 'ether') }} Ether</div>
+      <div>Suggester Burn: {{ ethers.utils.formatUnits(parsedData.suggesterBurn, 'ether') }} Ether</div>
     </div>
   </div>
 </template>
@@ -42,6 +45,11 @@ import { ethers } from 'ethers'
 import { decodeAppData, QueryStatus } from 'scorched'
 
 dayjs.extend(relativeTime)
+
+// TODO prefunding steps
+// TODO show balances
+// TODO large value deposits
+// TODO push events when a l1 tx happens
 
 @Component({
   name: 'MessageCell',
@@ -78,6 +86,7 @@ dayjs.extend(relativeTime)
   }
 })
 export default class MessageCell extends Vue {
+  ethers = ethers
   dayjs = dayjs
   parsedData = undefined
   QueryStatus = QueryStatus

@@ -43,9 +43,26 @@
           </div>
         </div>
         <div style="padding: 8px">
-          <div style="margin: 4px 0px" v-if="$store.state.scorched.channelsById[selectedChannelId]">
-            <div>Channel ID: {{ selectedChannelId }}</div>
-            <div>Suggester: {{ $store.state.scorched.channelsById[selectedChannelId].participants[1] }}</div>
+          <div style="margin: 4px 0px; display: flex" v-if="$store.state.scorched.channelsById[selectedChannelId]">
+            <div style="word-break: break-all; border: 1px solid black; padding: 2px">
+              <div>Channel ID: {{ selectedChannelId }}</div>
+              <div>Suggester: {{ $store.state.scorched.channelsById[selectedChannelId].participants[1] }}</div>
+              <div style="font-weight: bold">Balances</div>
+              <div style="display: flex; margin-bottom: 4px">
+                <img width="16" :src="$store.state.icon.iconsByAddress[channel.participants[0]]" />
+                <div spacer style="width: 4px" />
+                (asker)
+                <div spacer style="width: 4px" />
+                {{ askerBalance }} Ether
+              </div>
+              <div style="display: flex">
+                <img width="16" :src="$store.state.icon.iconsByAddress[channel.participants[1]]" />
+                <div spacer style="width: 4px" />
+                (suggester)
+                <div spacer style="width: 4px" />
+                {{ suggesterBalance }} Ether
+              </div>
+            </div>
           </div>
           <div style="margin: 4px 0px" v-if="$store.state.scorched.channelsById[selectedChannelId]">
             <input
@@ -66,6 +83,7 @@
           <SignatureCell :channelId="selectedChannelId" />
           <StateCell
             v-for="state of states"
+            :key="state.turnNum"
             :state="state"
             :channel="$store.state.scorched.channelsById[selectedChannelId]"
           />
@@ -108,6 +126,21 @@ import SignatureCell from './components/SignatureCell'
       const messages = this.$store.state.scorched.messagesByChannelId[this.selectedChannelId]
       if (!messages) return []
       return [...messages].reverse()
+    },
+    channel: function () {
+      return this.$store.state.scorched.channelsById[this.selectedChannelId]
+    },
+    askerBalance: function () {
+      if (!this.channel || !this.channel.states.length) return 0
+      const amount = this.channel.states[this.channel.states.length - 1].outcome[0].allocationItems[0].amount
+      const amountBN = ethers.BigNumber.from(amount)
+      return ethers.utils.formatUnits(amountBN, 'ether')
+    },
+    suggesterBalance: function () {
+      if (!this.channel || !this.channel.states.length) return 0
+      const amount = this.channel.states[this.channel.states.length - 1].outcome[0].allocationItems[1].amount
+      const amountBN = ethers.BigNumber.from(amount)
+      return ethers.utils.formatUnits(amountBN, 'ether')
     }
   },
 })

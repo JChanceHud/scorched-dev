@@ -10,43 +10,66 @@
       Awaiting counterparty signature
     </div>
     <div v-if="channelState === 2">
+      How much would you like to deposit to the channel?
+      <br />
+      <br />
+      These funds are still yours, you will be able to pay the suggester using the funds.
+      <br />
+      <EtherAmountField
+        v-model="depositAmount"
+      />
+      <button v-on:click="signPreDeposit">Sign</button>
+    </div>
+    <div v-if="channelState === 3">
       It's your turn to deposit
       <button v-on:click="deposit">Deposit</button>
     </div>
-    <div v-if="channelState === 3">
+    <div v-if="channelState === 4">
       Sign the post deposit state
       <button v-on:click="signPostDeposit">Sign</button>
     </div>
-    <div v-if="channelState === 4">
+    <div v-if="channelState === 5">
       Waiting for post deposit checkpoint transaction. Either party may send this transaction.
+      <br />
       <br />
       Message your counterparty to decide who will send it!
       <br />
+      <br />
       <button v-on:click="depositCheckpoint">Send Transaction</button>
     </div>
-    <div v-if="channelState === 5">
+    <div v-if="channelState === 6">
       Propose a payment and burn for a query.
       <NegotiateCell
         :onSubmit="signNegotation"
       />
     </div>
-    <div v-if="channelState === 6">
-      A query rate has been proposed.
-      <div>Payment: {{ latestAppData.payment.toString() }} wei</div>
-      <div>Asker Burn: {{ latestAppData.askerBurn.toString() }} wei</div>
-      <div>Suggester Burn: {{ latestAppData.suggesterBurn.toString() }} wei</div>
-      You may either accept or decline this query.
-      <button v-on:click="acceptRate">Accept</button>
-      <button v-on:click="rejectRate">Decline</button>
-    </div>
     <div v-if="channelState === 7">
+      A query rate has been proposed.
+      <br />
+      <br />
+      <div>Payment: {{ ethers.utils.formatUnits(latestAppData.payment, 'ether') }} Ether</div>
+      <div>Asker Burn: {{ ethers.utils.formatUnits(latestAppData.askerBurn, 'ether') }} Ether</div>
+      <div>Suggester Burn: {{ ethers.utils.formatUnits(latestAppData.suggesterBurn, 'ether') }} Ether</div>
+      <br />
+      You may either accept or decline this query.
+      <div style="display: flex">
+        <button v-on:click="acceptRate">Accept</button>
+        <button v-on:click="rejectRate">Decline</button>
+      </div>
+    </div>
+    <div v-if="channelState === 8">
       Your query has been accepted.
-      <div>Payment: {{ latestAppData.payment.toString() }} wei</div>
-      <div>Asker Burn: {{ latestAppData.askerBurn.toString() }} wei</div>
-      <div>Suggester Burn: {{ latestAppData.suggesterBurn.toString() }} wei</div>
+      <br />
+      <br />
+      <div>Payment: {{ ethers.utils.formatUnits(latestAppData.payment, 'ether') }} Ether</div>
+      <div>Asker Burn: {{ ethers.utils.formatUnits(latestAppData.askerBurn, 'ether') }} Ether</div>
+      <div>Suggester Burn: {{ ethers.utils.formatUnits(latestAppData.suggesterBurn, 'ether') }} Ether</div>
+      <br />
       When you are ready you may either pay the suggester or burn the funds.
-      <button v-on:click="pay">Pay</button>
-      <button v-on:click="burn">Burn</button>
+      <div style="display: flex">
+        <button v-on:click="pay">Pay</button>
+        <button v-on:click="burn">Burn</button>
+      </div>
     </div>
   </div>
 </template>
@@ -63,12 +86,14 @@ import {
   AppStatus,
   QueryStatus,
   ResponseStatus,
+  createOutcome,
 } from 'scorched'
 import NegotiateCell from './NegotiateCell'
+import EtherAmountField from './EtherAmountField'
 
 @Component({
   name: 'SignatureCell',
-  components: { NegotiateCell, },
+  components: { NegotiateCell, EtherAmountField, },
   props: [
     'channelId',
   ],
@@ -89,29 +114,57 @@ import NegotiateCell from './NegotiateCell'
   }
 })
 export default class SignatureCell extends Vue {
+  ethers = ethers
   channelState = -1
   latestAppData = {}
+  depositAmount = '0'
   // Possible states
   // 0 = awaiting counterparty deposit
   // 1 = awaiting counterparty signature
-  // 2 = performing deposit
-  // 3 = signing post deposit state
-  // 4 = awaiting post deposit checkpoint tx
-  // 5 = proposing a new rate (asker)
-  // 6 = accepting or rejecting an ask (suggester)
+  // 2 = signing pre deposit state
+  // 3 = performing deposit
+  // 4 = signing post deposit state
+  // 5 = awaiting post deposit checkpoint tx
+  // 6 = proposing a new rate (asker)
+  // 7 = accepting or rejecting an ask (suggester)
   //    if rejected allow proposing a different rate?
-  // 7 = paying or burning (asker)
+  // 8 = paying or burning (asker)
 
   async mounted() {
     await this.calculateState()
   }
 
-  async deposit() {
+  async signPreDeposit() {
     const { channel } = this
     if (!channel) return
     const { baseState } = channel
-    const [{allocationItems}] = baseState.outcome
+    const amIAsker = channel.participants.indexOf(ethers.utils.getAddress(this.$store.state.wallet.activeAddress)) === 0
+    const myAmount = ethers.utils.parseEther(this.depositAmount)
+    const prevOutcome = channel.states.length > 0 && channel.states[0].outcome[0].allocationItems[0].amount
     const contractAddress = baseState.appDefinition
+    const contract = new ethers.Contract(contractAddress, ScorchedABI, this.$store.state.wallet.signer)
+    const adjudicatorAddress = await contract.assetHolder()
+    const state = {
+      ...baseState,
+      turnNum: channel.states.length,
+      outcome: createOutcome({
+        [channel.participants[0]]: amIAsker ? myAmount : prevOutcome,
+        [channel.participants[1]]: amIAsker ? '0' : myAmount,
+        [ethers.constants.AddressZero]: 0,
+      }, adjudicatorAddress)
+    }
+    await this.$store.dispatch('signAndSubmitState', {
+      channelId: channel.id,
+      state,
+    })
+  }
+
+  async deposit() {
+    const { channel } = this
+    if (!channel) return
+    const lastState = this.channel.states[this.channel.states.length - 1]
+    const [{allocationItems}] = lastState.outcome
+    const contractAddress = channel.baseState.appDefinition
     const contract = new ethers.Contract(contractAddress, ScorchedABI, this.$store.state.wallet.signer)
     const adjudicatorAddress = await contract.assetHolder()
     const adjudicator = new ethers.Contract(adjudicatorAddress, AdjudicatorABI, this.$store.state.wallet.signer)
@@ -123,7 +176,7 @@ export default class SignatureCell extends Vue {
       depositedAmount,
       allocationItems[amIAsker ? 0 : 1].amount,
       {
-        value: this.depositAmount,
+        value: allocationItems[amIAsker ? 0 : 1].amount,
       }
     )
     await tx.wait()
@@ -131,10 +184,11 @@ export default class SignatureCell extends Vue {
 
   async signPostDeposit() {
     const { channel } = this
+    const latestState = channel.states[channel.states.length - 1]
     await this.$store.dispatch('signAndSubmitState', {
       channelId: channel.id,
       state: {
-        ...baseState,
+        ...latestState,
         turnNum: channel.states.length,
       }
     })
@@ -174,10 +228,26 @@ export default class SignatureCell extends Vue {
       responseStatus: shouldPay ? ResponseStatus.Pay : ResponseStatus.Burn,
     }
     const appDataBytes = encodeAppData(appData)
+    const lastState = this.channel.states[this.channel.states.length - 1]
+    const askerBalance = lastState.outcome[0].allocationItems[0].amount
+    const suggesterBalance = lastState.outcome[0].allocationItems[1].amount
+    const beneficiaryBalance = lastState.outcome[0].allocationItems[2].amount
+    const askerSpend = ethers.BigNumber.from(payment).gt(askerBurn) ? payment : askerBurn
+    const askerRefund = shouldPay ? askerSpend.sub(payment) : askerSpend.sub(askerBurn)
+    const suggesterRefund = shouldPay ? ethers.BigNumber.from(payment).add(suggesterBurn) : ethers.BigNumber.from(0)
+    const contractAddress = lastState.appDefinition
+    const contract = new ethers.Contract(contractAddress, ScorchedABI, this.$store.state.wallet.signer)
+    const adjudicatorAddress = await contract.assetHolder()
+    const outcome = createOutcome({
+      [this.channel.participants[0]]: ethers.BigNumber.from(askerBalance).add(askerRefund),
+      [this.channel.participants[1]]: ethers.BigNumber.from(suggesterBalance).add(suggesterRefund),
+      [ethers.constants.AddressZero]: ethers.BigNumber.from(beneficiaryBalance).sub(askerRefund).sub(suggesterRefund),
+    }, adjudicatorAddress)
     await this.$store.dispatch('signAndSubmitState', {
       channelId: this.channelId,
       state: {
-        ...this.channel.baseState,
+        ...lastState,
+        outcome,
         appData: appDataBytes,
         turnNum: this.channel.states.length,
       }
@@ -211,10 +281,24 @@ export default class SignatureCell extends Vue {
       responseStatus: ResponseStatus.None,
     }
     const appDataBytes = encodeAppData(appData)
+    const lastState = this.channel.states[this.channel.states.length - 1]
+    const askerBalance = lastState.outcome[0].allocationItems[0].amount
+    const suggesterBalance = lastState.outcome[0].allocationItems[1].amount
+    const beneficiaryBalance = lastState.outcome[0].allocationItems[2].amount
+    const askerSpend = ethers.BigNumber.from(payment).gt(askerBurn) ? payment : askerBurn
+    const contractAddress = lastState.appDefinition
+    const contract = new ethers.Contract(contractAddress, ScorchedABI, this.$store.state.wallet.signer)
+    const adjudicatorAddress = await contract.assetHolder()
+    const outcome = acceptOrDecline ? createOutcome({
+      [this.channel.participants[0]]: ethers.BigNumber.from(askerBalance).sub(askerSpend),
+      [this.channel.participants[1]]: ethers.BigNumber.from(suggesterBalance).sub(suggesterBurn),
+      [ethers.constants.AddressZero]: ethers.BigNumber.from(beneficiaryBalance).add(askerSpend).add(suggesterBurn),
+    }, adjudicatorAddress) : lastState.outcome
     await this.$store.dispatch('signAndSubmitState', {
       channelId: this.channelId,
       state: {
-        ...this.channel.baseState,
+        ...lastState,
+        outcome,
         appData: appDataBytes,
         turnNum: this.channel.states.length,
       }
@@ -223,6 +307,15 @@ export default class SignatureCell extends Vue {
 
   async signNegotation({ payment, askerBurn, suggesterBurn }) {
     if (!this.channel) return
+    const lastState = this.channel.states[this.channel.states.length - 1]
+    const [{allocationItems}] = lastState.outcome
+    const maxAskerCost = ethers.BigNumber.from(payment).add(askerBurn)
+    if (maxAskerCost.gt(allocationItems[0].amount)) {
+      throw new Error('Asker does not have enough balance')
+    }
+    if (ethers.BigNumber.from(suggesterBurn).gt(allocationItems[1].amount)) {
+      throw new Error('Suggester does not have enough balance')
+    }
     const appData = {
       payment,
       askerBurn,
@@ -235,7 +328,7 @@ export default class SignatureCell extends Vue {
     await this.$store.dispatch('signAndSubmitState', {
       channelId: this.channelId,
       state: {
-        ...this.channel.baseState,
+        ...lastState,
         appData: appDataBytes,
         turnNum: this.channel.states.length,
       }
@@ -247,23 +340,41 @@ export default class SignatureCell extends Vue {
     this.channelState = -1
     this.latestAppData = {}
     const { channel } = this
-    if (!channel) return console.log('no channel')
+    if (!channel) return
     const { baseState } = channel
-    const [{allocationItems}] = baseState.outcome
-    const targetDeposit = allocationItems.reduce((acc, { amount }) => {
-      return acc.add(amount)
-    }, ethers.BigNumber.from(0))
-    const latestSignature = channel.states[channel.states.length - 1]
     const contractAddress = baseState.appDefinition
     const contract = new ethers.Contract(contractAddress, ScorchedABI, this.$store.state.wallet.signer)
     const adjudicatorAddress = await contract.assetHolder()
     const adjudicator = new ethers.Contract(adjudicatorAddress, AdjudicatorABI, this.$store.state.wallet.signer)
     const amIAsker = channel.participants.indexOf(ethers.utils.getAddress(this.$store.state.wallet.activeAddress)) === 0
+    if (channel.states.length === 0) {
+      // first prefund state
+      if (amIAsker) {
+        this.channelState = 2
+      } else {
+        this.channelState = 1
+      }
+      return
+    }
+    if (channel.states.length === 1) {
+      // first prefund state
+      if (amIAsker) {
+        this.channelState = 1
+      } else {
+        this.channelState = 2
+      }
+      return
+    }
+    const lastState = channel.states[channel.states.length - 1]
+    const [{allocationItems}] = lastState.outcome
+    const targetDeposit = allocationItems.reduce((acc, { amount }) => {
+      return acc.add(amount)
+    }, ethers.BigNumber.from(0))
     const depositedAmount = await adjudicator.holdings(ethers.constants.AddressZero, channel.id)
     if (depositedAmount.eq(0)) {
       // asker should deposit
       if (amIAsker) {
-        this.channelState = 2
+        this.channelState = 3
       } else {
         this.channelState = 0
       }
@@ -272,25 +383,25 @@ export default class SignatureCell extends Vue {
       if (amIAsker) {
         this.channelState = 0
       } else {
-        this.channelState = 2
+        this.channelState = 3
       }
       return
     }
     // otherwise we have completed the deposit
     // need post checkpoint signatures
     const askerIsActive = channel.states.length % 2 === 0
-    if (channel.states.length < 2 && askerIsActive) {
+    if (channel.states.length < 4 && askerIsActive) {
       if (amIAsker) {
-        this.channelState = 3
+        this.channelState = 4
       } else {
         this.channelState = 1
       }
       return
-    } else if (channel.states.length < 2 && !askerIsActive) {
+    } else if (channel.states.length < 4 && !askerIsActive) {
       if (amIAsker) {
         this.channelState = 1
       } else {
-        this.channelState = 3
+        this.channelState = 4
       }
       return
     }
@@ -299,14 +410,14 @@ export default class SignatureCell extends Vue {
     const { finalizesAt, fingerprint, turnNumRecord } = await adjudicator.unpackStatus(channel.id)
     if (turnNumRecord === 0) {
       // need to run the post deposit checkpoint
-      this.channelState = 4
+      this.channelState = 5
       return
     }
     // otherwise we're ready to use the application
-    if (channel.states.length === 2) {
+    if (channel.states.length === 4) {
       // need to propose a rate
       if (amIAsker) {
-        this.channelState = 5
+        this.channelState = 6
       } else {
         this.channelState = 1
       }
@@ -330,12 +441,11 @@ export default class SignatureCell extends Vue {
       queryStatus,
       responseStatus,
     }
-    console.log(status, queryStatus)
 
     if (askerIsActive && queryStatus === QueryStatus.Accepted) {
       // ready to pay or burn
       if (amIAsker) {
-        this.channelState = 7
+        this.channelState = 8
       } else {
         this.channelState = 1
       }
@@ -343,7 +453,7 @@ export default class SignatureCell extends Vue {
     } else if (askerIsActive && queryStatus === QueryStatus.Declined) {
       // ready to propose a new rate
       if (amIAsker) {
-        this.channelState = 5
+        this.channelState = 6
       } else {
         this.channelState = 1
       }
@@ -353,7 +463,7 @@ export default class SignatureCell extends Vue {
       if (amIAsker) {
         this.channelState = 1
       } else {
-        this.channelState = 6
+        this.channelState = 7
       }
       return
     }
