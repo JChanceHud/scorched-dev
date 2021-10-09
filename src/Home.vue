@@ -55,12 +55,23 @@
                 <div spacer style="width: 4px" />
                 {{ askerBalance }} Ether
               </div>
-              <div style="display: flex">
+              <div style="display: flex; margin-bottom: 4px">
                 <img width="16" :src="$store.state.icon.iconsByAddress[channel.participants[1]]" />
                 <div spacer style="width: 4px" />
                 (suggester)
                 <div spacer style="width: 4px" />
                 {{ suggesterBalance }} Ether
+              </div>
+              <div style="display: flex">
+                <img width="16" :src="$store.state.icon.iconsByAddress[ethers.constants.AddressZero]" />
+                <div spacer style="width: 4px" />
+                (beneficiary)
+                <div spacer style="width: 4px" />
+                {{ beneficiaryBalance }} Ether
+              </div>
+              <div style="font-weight: bold">Channel Funding</div>
+              <div style="display: flex">
+                {{ channelBalance }} Ether
               </div>
             </div>
           </div>
@@ -109,6 +120,9 @@ import MessageCell from './components/MessageCell'
 import StateCell from './components/StateCell'
 import NegotiateCell from './components/NegotiateCell'
 import SignatureCell from './components/SignatureCell'
+import {
+  convertBytes32ToAddress,
+} from '@statechannels/nitro-protocol'
 
 @Component({
   name: 'Home',
@@ -141,10 +155,27 @@ import SignatureCell from './components/SignatureCell'
       const amount = this.channel.states[this.channel.states.length - 1].outcome[0].allocationItems[1].amount
       const amountBN = ethers.BigNumber.from(amount)
       return ethers.utils.formatUnits(amountBN, 'ether')
+    },
+    beneficiaryAddress: function () {
+      if (!this.channel || !this.channel.states.length) return ethers.constants.AddressZero
+      const paddedAddress = this.channel.states[this.channel.states.length - 1].outcome[0].allocationItems[2].destination
+      return convertBytes32ToAddress(paddedAddress)
+    },
+    beneficiaryBalance: function () {
+      if (!this.channel || !this.channel.states.length) return 0
+      const amount = this.channel.states[this.channel.states.length - 1].outcome[0].allocationItems[2].amount
+      const amountBN = ethers.BigNumber.from(amount)
+      return ethers.utils.formatUnits(amountBN, 'ether')
+    },
+    channelBalance: function () {
+      if (!this.channel) return 0
+      const amount = ethers.BigNumber.from(this.channel.balances[ethers.constants.AddressZero])
+      return ethers.utils.formatUnits(amount, 'ether')
     }
   },
 })
 export default class Home extends Vue {
+  ethers = ethers
   suggesterUrl = ''
   messageText = ''
   selectedChannelId = ''

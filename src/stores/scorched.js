@@ -69,6 +69,7 @@ export default {
       const { data, message, status } = await state.client.send('info')
       state.info = data
       dispatch('loadIcon', state.info.suggester, { root: true })
+      dispatch('loadIcon', ethers.constants.AddressZero, { root: true })
       await dispatch('authenticate')
       // get the authentication string
       await dispatch('initChannel')

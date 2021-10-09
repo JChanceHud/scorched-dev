@@ -86,8 +86,6 @@ export default class MessageCell extends Vue {
   parsedData = undefined
   QueryStatus = QueryStatus
   mounted() {
-    console.log(this.state)
-    console.log(this.parsedData)
     this.$store.dispatch('loadIcon', this.stateOwner)
   }
 }
