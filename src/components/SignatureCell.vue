@@ -105,10 +105,18 @@ import EtherAmountField from './EtherAmountField'
       const channel = this.$store.state.scorched.channelsById[this.channelId]
       if (!channel) return []
       return channel.states
+    },
+    l1Balances: function () {
+      const channel = this.$store.state.scorched.channelsById[this.channelId]
+      if (!channel) return {}
+      return channel.balances
     }
   },
   watch: {
     states: function () {
+      this.calculateState()
+    },
+    l1Balances: function () {
       this.calculateState()
     }
   }
@@ -407,12 +415,13 @@ export default class SignatureCell extends Vue {
     }
     // if we're here then the channel has been deposited and signed
     // need to check the latest checkpoint
-    const { finalizesAt, fingerprint, turnNumRecord } = await adjudicator.unpackStatus(channel.id)
-    if (turnNumRecord === 0) {
-      // need to run the post deposit checkpoint
-      this.channelState = 5
-      return
-    }
+    // UPDATE: theoretically don't need this on chain tx
+    // const { finalizesAt, fingerprint, turnNumRecord } = await adjudicator.unpackStatus(channel.id)
+    // if (turnNumRecord === 0) {
+    //   // need to run the post deposit checkpoint
+    //   this.channelState = 5
+    //   return
+    // }
     // otherwise we're ready to use the application
     if (channel.states.length === 4) {
       // need to propose a rate

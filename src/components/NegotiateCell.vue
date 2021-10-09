@@ -28,9 +28,9 @@ import EtherAmountField from './EtherAmountField'
   props: ['onSubmit']
 })
 export default class NegotiateCell extends Vue {
-  payment = '0.1'
-  askerBurn = '0.05'
-  suggesterBurn = '0.05'
+  payment = '0.01'
+  askerBurn = '0.005'
+  suggesterBurn = '0.005'
 
   submit() {
     if (typeof this.onSubmit === 'function') {

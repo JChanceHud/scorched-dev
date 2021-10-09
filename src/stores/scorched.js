@@ -68,6 +68,7 @@ export default {
       })
       const { data, message, status } = await state.client.send('info')
       state.info = data
+      dispatch('loadIcon', state.info.suggester, { root: true })
       await dispatch('authenticate')
       // get the authentication string
       await dispatch('initChannel')
@@ -111,6 +112,11 @@ export default {
         auth: state.auth,
       })
       state.channels = data
+      for (const channel of state.channels) {
+        for (const participant of channel.participants) {
+          dispatch('loadIcon', participant, { root: true })
+        }
+      }
       state.channelsById = [...data].reduce((acc, channel) => {
         return { ...acc, [channel.id]: channel }
       }, {})
@@ -122,7 +128,7 @@ export default {
       // subscribe to future messages
       const subscriptionId = uuid.v4()
       state.client.listen(subscriptionId, (err, { data }) => {
-        const { message, state: _state, signature } = data
+        const { message, state: _state, signature, balances } = data
         if (message) {
           commit('ingestMessages', {
             channelId: data.channelId,
@@ -131,6 +137,16 @@ export default {
         }
         if (_state && signature) {
           commit('ingestState', { channelId, state: _state, signature })
+        }
+        if (balances) {
+          state.channelsById = {
+            ...state.channelsById,
+            [data.channelId]: {
+              ...state.channelsById[data.channelId],
+              balances,
+            }
+          }
+          // a deposit occured, reload
         }
       })
       const { data: subscription } = await state.client.send('channel.subscribe', {
@@ -195,9 +211,6 @@ export default {
       const contract = new ethers.Contract(contractAddress, ScorchedABI, rootState.wallet.signer)
       const adjudicatorAddress = await contract.assetHolder()
       const adjudicator = new ethers.Contract(adjudicatorAddress, AdjudicatorABI, rootState.wallet.signer)
-      console.log(states)
-      console.log(whoSignedWhat)
-      console.log(orderedSignatures)
       const tx = await adjudicator.checkpoint(
         getFixedPart(states[1]),
         states[1].turnNum,
