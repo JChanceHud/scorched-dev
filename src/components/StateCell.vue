@@ -46,9 +46,6 @@ import { decodeAppData, QueryStatus } from 'scorched'
 
 dayjs.extend(relativeTime)
 
-// TODO prefunding steps
-// TODO show balances
-// TODO large value deposits
 // TODO push events when a l1 tx happens
 
 @Component({
