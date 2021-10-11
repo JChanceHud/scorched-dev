@@ -364,7 +364,7 @@ export default class SignatureCell extends Vue {
     if (!this.channel) return
     const lastState = this.channel.states[this.channel.states.length - 1]
     const [{allocationItems}] = lastState.outcome
-    const maxAskerCost = ethers.BigNumber.from(payment).add(askerBurn)
+    const maxAskerCost = ethers.BigNumber.from(payment).gt(askerBurn) ? ethers.BigNumber.from(payment) : ethers.BigNumber.from(askerBurn)
     if (maxAskerCost.gt(allocationItems[0].amount)) {
       throw new Error('Asker does not have enough balance')
     }
@@ -402,6 +402,7 @@ export default class SignatureCell extends Vue {
     const adjudicatorAddress = await contract.assetHolder()
     const adjudicator = new ethers.Contract(adjudicatorAddress, AdjudicatorABI, this.$store.state.wallet.signer)
     const amIAsker = channel.participants.indexOf(ethers.utils.getAddress(this.$store.state.wallet.activeAddress)) === 0
+    const askerIsActive = channel.states.length % 2 === 0
     if (channel.states.length === 0) {
       // first prefund state
       if (amIAsker) {
@@ -459,7 +460,6 @@ export default class SignatureCell extends Vue {
     }
     // otherwise we have completed the deposit
     // need post checkpoint signatures
-    const askerIsActive = channel.states.length % 2 === 0
     if (channel.states.length < 4 && askerIsActive) {
       if (amIAsker) {
         this.channelState = 4

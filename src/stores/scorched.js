@@ -11,7 +11,7 @@ import {
   AdjudicatorABI,
 } from 'scorched'
 
-const SCORCHED_ADDRESS = '0x6e64a91e1F41bd069984716a806034881D5c9Da8'
+const SCORCHED_ADDRESS = '0x55124919a3Eee2FF5b3eB715c02D0EAFB438CcC9'
 const WEBSOCKET_URL = 'ws://localhost:4000'
 
 export default {
@@ -75,7 +75,6 @@ export default {
       })
       const { data, message, status } = await state.client.send('info')
       state.info = data
-      dispatch('loadIcon', state.info.suggester, { root: true })
       dispatch('loadIcon', ethers.constants.AddressZero, { root: true })
       await dispatch('authenticate')
       await dispatch('subscribeNewChannels')

@@ -4,10 +4,15 @@
       <div>
         Scorched
       </div>
-      <div style="display: flex; align-items: center">
-        <img width="32" height="auto" :src="$store.state.icon.iconsByAddress[$store.state.wallet.activeAddress]" />
-        <div spacer style="width: 8px" />
-        Account: {{ $store.state.wallet.activeAddress }}
+      <div style="display: flex; flex-direction: column;">
+        <div>
+          <div>Account: {{ $store.state.wallet.activeAddress }}</div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end">
+          <button v-on:click="showingRegister = true">Register Suggester</button>
+          <div spacer style="width: 8px" />
+          <img width="32" height="auto" :src="$store.state.icon.iconsByAddress[$store.state.wallet.activeAddress]" />
+        </div>
       </div>
     </div>
     <div class="body">
@@ -24,6 +29,9 @@
           <div>Create new channel with Suggester</div>
           <input type="text" placeholder="0x6e64a91e1F41bd069984716a806034881D5c9Da8" v-model="suggesterAddress" />
           <button v-on:click="createChannel">Create Channel</button>
+          <button v-on:click="showingMarket = true">
+            View Registered Suggesters
+          </button>
         </div>
       </div>
       <div spacer style="height: 10px" />
@@ -101,6 +109,15 @@
         </div>
       </div>
     </div>
+    <RegisterSuggester
+      :onCancel="() => showingRegister = false"
+      :visible="showingRegister"
+    />
+    <SuggesterMarket
+      :onCancel="() => showingMarket = false"
+      :visible="showingMarket"
+      :onCreateChannel="(addr) => createChannelFromMarket(addr)"
+    />
   </div>
 </template>
 
@@ -124,10 +141,12 @@ import SignatureCell from './components/SignatureCell'
 import {
   convertBytes32ToAddress,
 } from '@statechannels/nitro-protocol'
+import RegisterSuggester from './components/RegisterSuggester'
+import SuggesterMarket from './components/SuggesterMarket'
 
 @Component({
   name: 'Home',
-  components: { MessageCell, StateCell, NegotiateCell, SignatureCell, },
+  components: { MessageCell, StateCell, NegotiateCell, SignatureCell, RegisterSuggester, SuggesterMarket, },
   metaInfo: {
     title: 'Scorched dev',
   },
@@ -204,6 +223,14 @@ export default class Home extends Vue {
   messageText = ''
   selectedChannelId = ''
   suggesterAddress = ''
+  showingRegister = false
+  showingMarket = false
+
+  async createChannelFromMarket(addr) {
+    const channelId = await this.$store.dispatch('createChannel', addr)
+    this.showingMarket = false
+    this.selectedChannelId = channelId
+  }
 
   async createChannel() {
     const channelId = await this.$store.dispatch('createChannel', this.suggesterAddress)

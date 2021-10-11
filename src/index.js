@@ -7,6 +7,7 @@ import Home from './Home'
 import WalletStore from './stores/wallet'
 import ScorchedStore from './stores/scorched'
 import AddressIconStore from './stores/address-icon'
+import MarketStore from './stores/market'
 
 export function createApp(cookie) {
   Vue.use(VueRouter)
@@ -24,6 +25,7 @@ export function createApp(cookie) {
       wallet: WalletStore,
       scorched: ScorchedStore,
       icon: AddressIconStore,
+      market: MarketStore,
     },
   })
   const router = new VueRouter({

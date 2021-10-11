@@ -14,7 +14,10 @@ import Component from 'vue-class-component'
 export default class App extends Vue {
   async mounted() {
     await this.$store.dispatch('load')
-    await this.$store.dispatch('connect')
+    await Promise.all([
+      this.$store.dispatch('loadSuggesters'),
+      this.$store.dispatch('connect'),
+    ])
   }
 }
 </script>
