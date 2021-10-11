@@ -17,18 +17,21 @@
     <div v-if="state.turnNum > 1 && state.turnNum < 4">
       Post Deposit
     </div>
-    <div v-if="parsedData && parsedData.status === 0">
+    <div v-if="state.isFinal">
+      <span style="font-size: 18px; font-weight: bold">Finalization</span>
+    </div>
+    <div v-if="parsedData && parsedData.status === 0 && !state.isFinal">
       <span style="font-size: 18px; font-weight: bold">Negotiating Payment</span>
     </div>
-    <div v-if="parsedData && parsedData.status === 1">
+    <div v-if="parsedData && parsedData.status === 1 && !state.isFinal">
       <span v-if="parsedData.queryStatus === 1" style="font-size: 18px; font-weight: bold">Suggester Accepted</span>
       <span v-if="parsedData.queryStatus === 2" style="font-size: 18px; font-weight: bold">Suggester Declined</span>
     </div>
-    <div v-if="parsedData && parsedData.status === 2">
+    <div v-if="parsedData && parsedData.status === 2 && !state.isFinal">
       <span v-if="parsedData.responseStatus === 1" style="font-size: 18px; font-weight: bold">Asker Paid</span>
       <span v-if="parsedData.responseStatus === 2" style="font-size: 18px; font-weight: bold">Asker Burned</span>
     </div>
-    <div v-if="parsedData && parsedData.status === 0">
+    <div v-if="parsedData && parsedData.status === 0 && !state.isFinal">
       <div>Payment: {{ ethers.utils.formatUnits(parsedData.payment, 'ether') }} Ether</div>
       <div>Asker Burn: {{ ethers.utils.formatUnits(parsedData.askerBurn, 'ether') }} Ether</div>
       <div>Suggester Burn: {{ ethers.utils.formatUnits(parsedData.suggesterBurn, 'ether') }} Ether</div>

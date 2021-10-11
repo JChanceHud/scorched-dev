@@ -70,8 +70,9 @@
                 {{ beneficiaryBalance }} Ether
               </div>
               <div style="font-weight: bold">Channel Funding</div>
-              <div style="display: flex">
-                {{ channelBalance }} Ether
+              <div style="display: flex; justify-content: space-between">
+                <div>{{ channelBalance }} Ether</div>
+                <button v-if="canWithdraw" v-on:click="withdraw">Withdraw</button>
               </div>
             </div>
           </div>
@@ -115,6 +116,7 @@ import {
   AppStatus,
   QueryStatus,
   ResponseStatus,
+  decodeAppData,
 } from 'scorched'
 import MessageCell from './components/MessageCell'
 import StateCell from './components/StateCell'
@@ -171,6 +173,30 @@ import {
       if (!this.channel) return 0
       const amount = ethers.BigNumber.from(this.channel.balances[ethers.constants.AddressZero])
       return ethers.utils.formatUnits(amount, 'ether')
+    },
+    canWithdraw: function () {
+      if (!this.channel) return false
+      const latestState = this.channel.states[this.channel.states.length - 1]
+      const amIAsker = this.channel.participants.indexOf(ethers.utils.getAddress(this.$store.state.wallet.activeAddress)) === 0
+      if (!latestState || latestState.turnNum < 4) return false
+      if (latestState.turnNum % 2 === (amIAsker ? 0 : 1)) {
+        // not our turn
+        return false
+      }
+      if (latestState.isFinal) {
+        // let the signature cell handle it
+        return false
+      }
+      const [[
+        status,
+        queryStatus,
+        responseStatus,
+      ]] = decodeAppData(latestState.appData)
+      if (status === AppStatus.Answer && queryStatus === QueryStatus.Accepted) {
+        // we're waiting for a response
+        return false
+      }
+      return true
     }
   },
 })
@@ -189,6 +215,23 @@ export default class Home extends Vue {
     if (this.$store.state.scorched.channels.length) {
       this.selectedChannelId = this.$store.state.scorched.channels[0].id
     }
+  }
+
+  async withdraw() {
+    const { baseState } = this.channel
+    const latestState = this.channel.states[this.channel.states.length - 1]
+    const state = {
+      ...latestState,
+      status: AppStatus.Negotiate,
+      queryStatus: QueryStatus.None,
+      responseStatus: ResponseStatus.None,
+      isFinal: true,
+      turnNum: this.channel.states.length,
+    }
+    await this.$store.dispatch('signAndSubmitState', {
+      channelId: this.selectedChannelId,
+      state,
+    })
   }
 
   async sendMessage() {

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div style="border: 1px solid black; padding: 4px">
     <div v-if="channelState === -1">
       Loading state information...
     </div>
@@ -71,6 +71,16 @@
         <button v-on:click="burn">Burn</button>
       </div>
     </div>
+    <div v-if="channelState === 9">
+      A withdrawal has been initiated. Sign the state to confirm.
+      <br />
+      <button v-on:click="signWithdrawal">Sign</button>
+    </div>
+    <div v-if="channelState === 10">
+      Withdrawal signed by all parties. Anyone may broadcast this state to L1 to finalize the channel.
+      <br />
+      <button v-on:click="finalize">Finalize</button>
+    </div>
   </div>
 </template>
 
@@ -90,6 +100,7 @@ import {
 } from 'scorched'
 import NegotiateCell from './NegotiateCell'
 import EtherAmountField from './EtherAmountField'
+import { getFixedPart, hashAppPart, encodeOutcome } from '@statechannels/nitro-protocol'
 
 @Component({
   name: 'SignatureCell',
@@ -137,9 +148,45 @@ export default class SignatureCell extends Vue {
   // 7 = accepting or rejecting an ask (suggester)
   //    if rejected allow proposing a different rate?
   // 8 = paying or burning (asker)
+  // 9 = withdrawal was initiated
+  // 10 = withdrawal signed, ready for l1 broadcast
 
   async mounted() {
     await this.calculateState()
+  }
+
+  async finalize() {
+    const { channel } = this
+    if (!channel) return
+    const latestState = channel.states[channel.states.length - 1]
+    const contractAddress = channel.baseState.appDefinition
+    const contract = new ethers.Contract(contractAddress, ScorchedABI, this.$store.state.wallet.signer)
+    const adjudicatorAddress = await contract.assetHolder()
+    const adjudicator = new ethers.Contract(adjudicatorAddress, AdjudicatorABI, this.$store.state.wallet.signer)
+    const amIAsker = channel.participants.indexOf(ethers.utils.getAddress(this.$store.state.wallet.activeAddress)) === 0
+    const sigs = channel.signatures.slice(-2)
+    const orderedSigs = latestState.turnNum % 2 === 0 ? sigs : [...sigs].reverse()
+    const tx = await adjudicator.concludeAndTransferAllAssets(
+      latestState.turnNum,
+      getFixedPart(latestState),
+      hashAppPart(latestState),
+      encodeOutcome(latestState.outcome),
+      1, // number of states (everyone signed the same one)
+      [0, 0], // everyone signed same state
+      orderedSigs,
+    )
+    await tx.wait()
+  }
+
+  async signWithdrawal() {
+    const { channel } = this
+    if (!channel) return
+    const latestState = channel.states[channel.states.length - 1]
+    // sign the exact state
+    await this.$store.dispatch('signAndSubmitState', {
+      channelId: channel.id,
+      state: latestState,
+    })
   }
 
   async signPreDeposit() {
@@ -374,6 +421,21 @@ export default class SignatureCell extends Vue {
       return
     }
     const lastState = channel.states[channel.states.length - 1]
+    // check for finalization
+    const secondToLastState = channel.states[channel.states.length - 2]
+
+    if (secondToLastState.isFinal && secondToLastState.turnNum === lastState.turnNum) {
+      this.channelState = 10
+      return
+    }
+    if (lastState.isFinal) {
+      if (askerIsActive && amIAsker) {
+        this.channelState = 9
+      } else {
+        this.channelState = 1
+      }
+      return
+    }
     const [{allocationItems}] = lastState.outcome
     const targetDeposit = allocationItems.reduce((acc, { amount }) => {
       return acc.add(amount)
@@ -441,7 +503,7 @@ export default class SignatureCell extends Vue {
       status,
       queryStatus,
       responseStatus,
-    ]] = decodeAppData(channel.states[channel.states.length - 1].appData)
+    ]] = decodeAppData(lastState.appData)
     this.latestAppData = {
       payment,
       suggesterBurn,
