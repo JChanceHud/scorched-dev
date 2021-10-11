@@ -12,6 +12,7 @@ import {
 } from 'scorched'
 
 const SCORCHED_ADDRESS = '0x6e64a91e1F41bd069984716a806034881D5c9Da8'
+const WEBSOCKET_URL = 'ws://localhost:4000'
 
 export default {
   state: {
@@ -25,6 +26,12 @@ export default {
     auth: undefined,
   },
   mutations: {
+    resetMessages: (state, { channelId }) => {
+      state.messagesByChannelId = {
+        ...state.messagesByChannelId,
+        [channelId]: [],
+      }
+    },
     ingestMessages: (state, { channelId, messages: _messages }) => {
       // can pass a single message or an arry
       const messages = [_messages].flat()
@@ -50,7 +57,7 @@ export default {
   actions: {
     connect: async ({ state, dispatch }, url) => {
       if (state.connected) return console.log('Already connected')
-      state.wsAddress = url
+      state.wsAddress = WEBSOCKET_URL
       try {
         state.client = new EspecialClient(state.wsAddress)
         await state.client.connect()
@@ -71,8 +78,9 @@ export default {
       dispatch('loadIcon', state.info.suggester, { root: true })
       dispatch('loadIcon', ethers.constants.AddressZero, { root: true })
       await dispatch('authenticate')
+      await dispatch('subscribeNewChannels')
       // get the authentication string
-      await dispatch('initChannel')
+      await dispatch('loadChannels')
     },
     disconnect: async ({ state }, payload) => {
       if (!state.connected) return console.log('Not connected')
@@ -107,7 +115,32 @@ export default {
         address: rootState.wallet.activeAddress,
       }
     },
-    initChannel: async ({ state, dispatch, rootState }) => {
+    createChannel: async ({ state, dispatch }, suggester) => {
+      if (!state.client || !state.connected) return
+      const { data: channel } = await state.client.send('channel.create', {
+        auth: state.auth,
+        suggester,
+      })
+      await dispatch('loadChannels')
+      return channel.id
+    },
+    subscribeNewChannels: async ({ state, dispatch }) => {
+      const subscriptionId = uuid.v4()
+      state.client.listen(subscriptionId, (err, { data }) => {
+        const { channel } = data
+        state.channels.unshift(channel)
+        state.channelsById = {
+          ...state.channelsById,
+          [channel.id]: channel,
+        }
+        dispatch('loadChannelMessages', channel.id)
+      })
+      await state.client.send('channel.subscribeNewChannels', {
+        subscriptionId,
+        auth: state.auth,
+      })
+    },
+    loadChannels: async ({ state, dispatch, rootState }) => {
       if (!state.client || !state.connected) return
       const { data } = await state.client.send('channel.retrieve', {
         auth: state.auth,
@@ -159,6 +192,7 @@ export default {
         channelId,
         auth: state.auth,
       })
+      commit('resetMessages', { channelId })
       commit('ingestMessages', {
         messages,
         channelId,

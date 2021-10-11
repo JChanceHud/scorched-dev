@@ -12,21 +12,18 @@
     </div>
     <div class="body">
       <div style="display: flex">
-        <div>
-          Suggester URL:
+        <div style="display: flex; align-items: center">
+          <div :style="`width: 10px; height: 10px; background: ${$store.state.scorched.connected ? 'green' : 'red'}; border-radius: 10px`" />
+          <div spacer style="width: 10px" />
+          <div>
+            {{ $store.state.scorched.connected ? 'Connected' : 'Not Connected' }}
+          </div>
         </div>
-        <div spacer style="width: 10px" />
-        <input type="text" placeholder="ws://server:port" v-model="suggesterUrl" />
-        <div spacer style="width: 10px" />
-        <button v-on:click="connect">
-          Connect
-        </button>
-      </div>
-      <div style="display: flex; align-items: center">
-        <div :style="`width: 10px; height: 10px; background: ${$store.state.scorched.connected ? 'green' : 'red'}; border-radius: 10px`" />
-        <div spacer style="width: 10px" />
+        <div spacer style="width: 200px" />
         <div>
-          {{ $store.state.scorched.connected ? 'Connected' : 'Not Connected' }}
+          <div>Create new channel with Suggester</div>
+          <input type="text" placeholder="0x6e64a91e1F41bd069984716a806034881D5c9Da8" v-model="suggesterAddress" />
+          <button v-on:click="createChannel">Create Channel</button>
         </div>
       </div>
       <div spacer style="height: 10px" />
@@ -40,7 +37,8 @@
             style="background: #aaaaff; padding: 4px; margin: 2px; cursor: pointer"
             v-on:click="selectedChannelId = channel.id"
           >
-            {{ channel.participants[0].slice(0, 10) }}
+            <div>Asker: <img width="16" :src="$store.state.icon.iconsByAddress[channel.participants[0]]" /></div>
+            <div>Suggester: <img width="16" :src="$store.state.icon.iconsByAddress[channel.participants[1]]" /></div>
           </div>
         </div>
         <div style="margin: 0px 4px">
@@ -203,19 +201,13 @@ import {
 })
 export default class Home extends Vue {
   ethers = ethers
-  suggesterUrl = ''
   messageText = ''
   selectedChannelId = ''
-  showingDeposit = false
-  depositAmount = 0
-  showingSignature = false
-  showingNegotiate = false
+  suggesterAddress = ''
 
-  async connect() {
-    await this.$store.dispatch('connect', this.suggesterUrl)
-    if (this.$store.state.scorched.channels.length) {
-      this.selectedChannelId = this.$store.state.scorched.channels[0].id
-    }
+  async createChannel() {
+    const channelId = await this.$store.dispatch('createChannel', this.suggesterAddress)
+    this.selectedChannelId = channelId
   }
 
   async withdraw() {

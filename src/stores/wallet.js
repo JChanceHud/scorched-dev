@@ -18,7 +18,6 @@ export default {
       state.activeAddress = await state.signer.getAddress()
       dispatch('loadIcon', state.activeAddress, { root: true })
       state.network = await state.provider.getNetwork()
-      console.log(state.network)
     },
     sign: async ({ state }, payload) => {
       if (!state.signer) throw new Error('Ethers signer is not initialized')
