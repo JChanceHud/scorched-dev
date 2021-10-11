@@ -29,11 +29,12 @@
           {{ $store.state.scorched.connected ? 'Connected' : 'Not Connected' }}
         </div>
       </div>
+      <div spacer style="height: 10px" />
       <div style="display: flex">
         <div
-          style="max-width: 200px; word-break: break-all; padding: 8px"
-          v-if="$store.state.scorched.channels.length > 1"
+          style="max-width: 200px; word-break: break-all; padding: 4px; border: 1px solid black"
         >
+          <div>Channels</div>
           <div
             v-for="channel of $store.state.scorched.channels"
             style="background: #aaaaff; padding: 4px; margin: 2px; cursor: pointer"
@@ -42,8 +43,8 @@
             {{ channel.participants[0].slice(0, 10) }}
           </div>
         </div>
-        <div style="padding: 8px">
-          <div style="margin: 4px 0px; display: flex" v-if="$store.state.scorched.channelsById[selectedChannelId]">
+        <div style="margin: 0px 4px">
+          <div style="margin: 0px 0px; display: flex" v-if="$store.state.scorched.channelsById[selectedChannelId]">
             <div style="word-break: break-all; border: 1px solid black; padding: 2px">
               <div>Channel ID: {{ selectedChannelId }}</div>
               <div>Suggester: {{ $store.state.scorched.channelsById[selectedChannelId].participants[1] }}</div>
@@ -91,7 +92,7 @@
             :key="message.timestamp"
           />
         </div>
-        <div style="padding: 8px" v-if="$store.state.scorched.channelsById[selectedChannelId]">
+        <div v-if="$store.state.scorched.channelsById[selectedChannelId]">
           <SignatureCell :channelId="selectedChannelId" />
           <StateCell
             v-for="state of states"
