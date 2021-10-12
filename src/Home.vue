@@ -2,9 +2,9 @@
   <div class="container">
     <div class="header">
       <div>
-        Scorched
+        Scorched (Görli)
       </div>
-      <div style="display: flex; flex-direction: column;">
+      <div v-if="$store.state.wallet.activeAddress" style="display: flex; flex-direction: column;">
         <div>
           <div>Account: {{ $store.state.wallet.activeAddress }}</div>
         </div>
@@ -13,6 +13,9 @@
           <div spacer style="width: 8px" />
           <img width="32" height="auto" :src="$store.state.icon.iconsByAddress[$store.state.wallet.activeAddress]" />
         </div>
+      </div>
+      <div v-if="!$store.state.wallet.activeAddress">
+        <button v-on:click="$store.dispatch('load')">Connect MetaMask</button>
       </div>
     </div>
     <div class="body">
@@ -282,6 +285,7 @@ export default class Home extends Vue {
   display: flex;
   justify-content: space-between;
   font-size: 20px;
+  margin-bottom: 8px;
 }
 .body {
   align-self: center;
