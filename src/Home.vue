@@ -206,11 +206,17 @@ import SuggesterMarket from './components/SuggesterMarket'
         return false
       }
       const [[
+        payment,
+        suggesterBurn,
+        askerBurn,
         status,
         queryStatus,
         responseStatus,
       ]] = decodeAppData(latestState.appData)
-      if (status === AppStatus.Answer && queryStatus === QueryStatus.Accepted) {
+      if (
+        +ethers.BigNumber.from(status).toString() === AppStatus.Answer &&
+        +ethers.BigNumber.from(queryStatus).toString() === QueryStatus.Accepted
+      ) {
         // we're waiting for a response
         return false
       }
@@ -256,6 +262,7 @@ export default class Home extends Vue {
   }
 
   async sendMessage() {
+    if (!this.messageText) return
     await this.$store.dispatch('sendMessage', {
       text: this.messageText,
       channelId: this.selectedChannelId,

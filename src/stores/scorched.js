@@ -12,7 +12,8 @@ import {
 } from 'scorched'
 
 const SCORCHED_ADDRESS = '0x55124919a3Eee2FF5b3eB715c02D0EAFB438CcC9'
-const WEBSOCKET_URL = 'ws://localhost:4000'
+// const WEBSOCKET_URL = 'ws://localhost:4000'
+const WEBSOCKET_URL = 'wss://ws.scorched.tubby.cloud'
 
 export default {
   state: {
@@ -25,6 +26,7 @@ export default {
     messagesByChannelId: {},
     listenersByChannelId: {},
     auth: undefined,
+    keepaliveTimer: null
   },
   mutations: {
     resetMessages: (state, { channelId }) => {
@@ -74,6 +76,7 @@ export default {
           state.client = undefined
         }
       })
+      state.keepaliveTimer = setInterval(() => state.client.send('ping'), 5 * 60 * 1000)
       const { data, message, status } = await state.client.send('info')
       state.info = data
       dispatch('loadIcon', ethers.constants.AddressZero, { root: true })
@@ -87,6 +90,10 @@ export default {
       state.client.disconnect()
       state.client = undefined
       this.listenersByChannelId = {}
+      if (state.keepaliveTimer) {
+        clearTimeout(state.keepaliveTimer)
+        state.keepaliveTimer = null
+      }
     },
     authenticate: async ({ state, rootState, dispatch }) => {
       const timestamp = `${+new Date()}`
