@@ -2,7 +2,7 @@
   <div class="container">
     <div class="header">
       <div>
-        Scorched (Görli)
+        Scorched (<a href="https://goerli.etherscan.io/address/0x48ba949f5d6b360c0bbfad8dee26bd8da8649cf6" target="_blank">Görli</a>)
       </div>
       <div v-if="$store.state.wallet.activeAddress" style="display: flex; flex-direction: column;">
         <div>
