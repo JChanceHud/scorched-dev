@@ -23,6 +23,7 @@ export default {
     channels: [],
     channelsById: {},
     messagesByChannelId: {},
+    listenersByChannelId: {},
     auth: undefined,
   },
   mutations: {
@@ -85,6 +86,7 @@ export default {
       if (!state.connected) return console.log('Not connected')
       state.client.disconnect()
       state.client = undefined
+      this.listenersByChannelId = {}
     },
     authenticate: async ({ state, rootState, dispatch }) => {
       const timestamp = `${+new Date()}`
@@ -159,34 +161,37 @@ export default {
     },
     loadChannelMessages: async ({ state, commit, }, channelId) => {
       // subscribe to future messages
-      const subscriptionId = uuid.v4()
-      state.client.listen(subscriptionId, (err, { data }) => {
-        const { message, state: _state, signature, balances } = data
-        if (message) {
-          commit('ingestMessages', {
-            channelId: data.channelId,
-            messages: data.message,
-          })
-        }
-        if (_state && signature) {
-          commit('ingestState', { channelId, state: _state, signature })
-        }
-        if (balances) {
-          state.channelsById = {
-            ...state.channelsById,
-            [data.channelId]: {
-              ...state.channelsById[data.channelId],
-              balances,
-            }
+      if (!state.listenersByChannelId[channelId]) {
+        const subscriptionId = uuid.v4()
+        state.client.listen(subscriptionId, (err, { data }) => {
+          const { message, state: _state, signature, balances } = data
+          if (message) {
+            commit('ingestMessages', {
+              channelId: data.channelId,
+              messages: data.message,
+            })
           }
-          // a deposit occured, reload
-        }
-      })
-      const { data: subscription } = await state.client.send('channel.subscribe', {
-        channelId,
-        subscriptionId,
-        auth: state.auth,
-      })
+          if (_state && signature) {
+            commit('ingestState', { channelId, state: _state, signature })
+          }
+          if (balances) {
+            state.channelsById = {
+              ...state.channelsById,
+              [data.channelId]: {
+                ...state.channelsById[data.channelId],
+                balances,
+              }
+            }
+            // a deposit occured, reload
+          }
+        })
+        const { data: subscription } = await state.client.send('channel.subscribe', {
+          channelId,
+          subscriptionId,
+          auth: state.auth,
+        })
+        state.listenersByChannelId[channelId] = subscriptionId
+      }
       const { data: messages } = await state.client.send('channel.messages', {
         channelId,
         auth: state.auth,
