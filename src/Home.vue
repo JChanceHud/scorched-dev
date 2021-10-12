@@ -16,7 +16,7 @@
       </div>
     </div>
     <div class="body">
-      <div style="display: flex">
+      <div style="display: flex; align-items: center">
         <div style="display: flex; align-items: center">
           <div :style="`width: 10px; height: 10px; background: ${$store.state.scorched.connected ? 'green' : 'red'}; border-radius: 10px`" />
           <div spacer style="width: 10px" />
@@ -24,14 +24,15 @@
             {{ $store.state.scorched.connected ? 'Connected' : 'Not Connected' }}
           </div>
         </div>
-        <div spacer style="width: 200px" />
+        <div spacer style="flex: 1" />
+        <button v-on:click="showingMarket = true">
+          View Registered Suggesters
+        </button>
+        <div spacer style="flex: 1" />
         <div>
           <div>Create new channel with Suggester</div>
           <input type="text" placeholder="0x6e64a91e1F41bd069984716a806034881D5c9Da8" v-model="suggesterAddress" />
           <button v-on:click="createChannel">Create Channel</button>
-          <button v-on:click="showingMarket = true">
-            View Registered Suggesters
-          </button>
         </div>
       </div>
       <div spacer style="height: 10px" />
