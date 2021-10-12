@@ -5,6 +5,7 @@ const MARKET_ADDRESS = '0xCB6e1b9D7beD1a5E0cb05648Db5CbD4566788A0e'
 
 export default {
   state: {
+    marketAddress: MARKET_ADDRESS,
     suggesters: [],
   },
   mutations: {},

@@ -81,6 +81,9 @@
       <br />
       <button v-on:click="finalize">Finalize</button>
     </div>
+    <div v-if="channelState === 11">
+      Channel has been finalized and concluded. Open a new channel to start communication.
+    </div>
   </div>
 </template>
 
@@ -150,6 +153,7 @@ export default class SignatureCell extends Vue {
   // 8 = paying or burning (asker)
   // 9 = withdrawal was initiated
   // 10 = withdrawal signed, ready for l1 broadcast
+  // 11 = withdrawal complete
 
   async mounted() {
     await this.calculateState()
@@ -425,8 +429,13 @@ export default class SignatureCell extends Vue {
     // check for finalization
     const secondToLastState = channel.states[channel.states.length - 2]
 
+    const depositedAmount = await adjudicator.holdings(ethers.constants.AddressZero, channel.id)
     if (secondToLastState.isFinal && secondToLastState.turnNum === lastState.turnNum) {
-      this.channelState = 10
+      if (depositedAmount.gt(0)) {
+        this.channelState = 10
+      } else {
+        this.channelState = 11
+      }
       return
     }
     if (lastState.isFinal) {
@@ -441,7 +450,6 @@ export default class SignatureCell extends Vue {
     const targetDeposit = allocationItems.reduce((acc, { amount }) => {
       return acc.add(amount)
     }, ethers.BigNumber.from(0))
-    const depositedAmount = await adjudicator.holdings(ethers.constants.AddressZero, channel.id)
     if (depositedAmount.eq(0)) {
       // asker should deposit
       if (amIAsker) {

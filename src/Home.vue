@@ -233,6 +233,7 @@ export default class Home extends Vue {
   }
 
   async createChannel() {
+    if (!/^0x[a-fA-F0-9]{40}$/.test(this.suggesterAddress)) return
     const channelId = await this.$store.dispatch('createChannel', this.suggesterAddress)
     this.selectedChannelId = channelId
   }
