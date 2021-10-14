@@ -31,7 +31,7 @@
     <div style="padding: 4px; border: 1px solid black; margin-top: 8px">
       <div>Create channel with address</div>
       <input type="text" placeholder="0x6e64a91e1F41bd069984716a806034881D5c9Da8" v-model="suggesterAddress" />
-      <button v-on:click="createChannel">Create Channel</button>
+      <button v-on:click="createCustomChannel">Create Channel</button>
     </div>
   </Popup>
 </template>
@@ -53,7 +53,7 @@ export default class SuggesterMarket extends Vue {
   newBio = ''
   suggesterAddress = ''
 
-  async createChannel() {
+  async createCustomChannel() {
     if (!/^0x[a-fA-F0-9]{40}$/.test(this.suggesterAddress)) return
     const channelId = await this.$store.dispatch('createChannel', this.suggesterAddress)
     this.selectedChannelId = channelId

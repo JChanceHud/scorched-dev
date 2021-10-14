@@ -12,8 +12,8 @@ import {
 } from 'scorched'
 
 const SCORCHED_ADDRESS = '0x55124919a3Eee2FF5b3eB715c02D0EAFB438CcC9'
-// const WEBSOCKET_URL = 'ws://localhost:4000'
-const WEBSOCKET_URL = 'wss://ws.scorched.tubby.cloud'
+const WEBSOCKET_URL = 'ws://localhost:4000'
+// const WEBSOCKET_URL = 'wss://ws.scorched.tubby.cloud'
 
 export default {
   state: {
@@ -24,6 +24,7 @@ export default {
     channels: [],
     channelsById: {},
     messagesByChannelId: {},
+    lastReadByChannelId: {},
     listenersByChannelId: {},
     auth: undefined,
     keepaliveTimer: null
@@ -172,7 +173,7 @@ export default {
       if (!state.listenersByChannelId[channelId]) {
         const subscriptionId = uuid.v4()
         state.client.listen(subscriptionId, (err, { data }) => {
-          const { message, state: _state, signature, balances } = data
+          const { message, state: _state, signature, balances, channel } = data
           if (message) {
             commit('ingestMessages', {
               channelId: data.channelId,
@@ -191,6 +192,12 @@ export default {
               }
             }
             // a deposit occured, reload
+          }
+          if (channel) {
+            state.channelsById = {
+              ...state.channelsById,
+              [channel.id]: channel,
+            }
           }
         })
         const { data: subscription } = await state.client.send('channel.subscribe', {
@@ -267,6 +274,21 @@ export default {
         whoSignedWhat,
       )
       await tx.wait()
+    },
+    markChannelRead: async ({ state }, channelId) => {
+      const channel = state.channelsById[channelId]
+      if (!channel) throw new Error(`Unable to find channel by id "${channelId}"`)
+      await state.client.send('channel.markRead', {
+        channelId,
+        auth: state.auth,
+      })
+      state.channelsById = {
+        ...state.channelsById,
+        [channelId]: {
+          ...state.channelsById[channelId],
+          unreadCount: 0,
+        }
+      }
     }
   },
 }

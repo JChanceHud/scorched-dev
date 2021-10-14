@@ -22,6 +22,9 @@
       />
       <div v-if="nameForSuggester">{{ nameForSuggester }}</div>
     </div>
+    <div v-if="channel.unreadCount > 0" class="unread-badge">
+      {{ channel.unreadCount }}
+    </div>
   </div>
 </template>
 
@@ -31,8 +34,11 @@ import Component from 'vue-class-component'
 
 @Component({
   name: 'ChannelButton',
-  props: ['channel'],
+  props: ['channelId'],
   computed: {
+    channel: function () {
+      return this.$store.state.scorched.channelsById[this.channelId]
+    },
     nameForAsker: function () {
       const [ asker ] = this.channel.participants
       if (asker === this.$store.state.wallet.activeAddress) {
@@ -62,5 +68,15 @@ export default class ChannelButton extends Vue {
   padding: 4px;
   margin: 2px;
   cursor: pointer;
+  position: relative;
+}
+.unread-badge {
+  background: red;
+  border-radius: 5px;
+  padding: 2px 4px;
+  color: white;
+  position: absolute;
+  top: -5px;
+  left: calc(100% - 20px);
 }
 </style>

@@ -48,7 +48,7 @@
           <div>Channels</div>
           <ChannelButton
             v-for="channel of $store.state.scorched.channels"
-            :channel="channel"
+            :channelId="channel.id"
             v-on:click="selectedChannelId = channel.id"
           />
         </div>
@@ -238,6 +238,13 @@ import ChannelButton from './components/ChannelButton'
       return true
     }
   },
+  watch: {
+    selectedChannelId: function () {
+      if (this.selectedChannelId) {
+        this.$store.dispatch('markChannelRead', this.selectedChannelId)
+      }
+    }
+  }
 })
 export default class Home extends Vue {
   ethers = ethers
