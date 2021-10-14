@@ -68,6 +68,7 @@ export default class MessageCell extends Vue {
   border-radius: 2px;
   padding: 4px;
   margin: 2px 0px;
+  max-width: 600px;
 }
 .timestamp-text {
   font-size: 12px;

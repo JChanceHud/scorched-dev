@@ -7,6 +7,7 @@ export default {
   state: {
     marketAddress: MARKET_ADDRESS,
     suggesters: [],
+    suggestersByAddress: {},
   },
   mutations: {},
   actions: {
@@ -20,7 +21,18 @@ export default {
         }
         // slice the 0 address
         state.suggesters = (await Promise.all(promises)).slice(1)
-          .map(([address, url, name, bio]) => ({ address, url, name, bio }))
+          .map(([address, url, name, bio]) => ({
+            address: ethers.utils.getAddress(address),
+            url,
+            name,
+            bio
+          }))
+        state.suggestersByAddress = state.suggesters.reduce((acc, suggester) => {
+          return {
+            ...acc,
+            [suggester.address]: suggester,
+          }
+        }, {})
         for (const { address } of state.suggesters) {
           dispatch('loadIcon', address, { root: true })
         }
@@ -41,6 +53,12 @@ export default {
       }
       const [ address, url, name, bio ] = await market.suggesterInfoByIndex(count)
       state.suggesters = [...state.suggesters, { address, url, name, bio }]
+      state.suggestersByAddress = state.suggesters.reduce((acc, suggester) => {
+        return {
+          ...acc,
+          [suggester.address]: suggester,
+        }
+      })
     }
   }
 }

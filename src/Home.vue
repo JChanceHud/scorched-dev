@@ -43,19 +43,16 @@
       <div spacer style="height: 10px" />
       <div style="display: flex">
         <div
-          style="width: 200px; word-break: break-all; padding: 4px; border: 1px solid black"
+          style="width: 20%; padding: 4px; border: 1px solid black"
         >
           <div>Channels</div>
-          <div
+          <ChannelButton
             v-for="channel of $store.state.scorched.channels"
-            style="background: #aaaaff; padding: 4px; margin: 2px; cursor: pointer"
+            :channel="channel"
             v-on:click="selectedChannelId = channel.id"
-          >
-            <div>Asker: <img width="16" :src="$store.state.icon.iconsByAddress[channel.participants[0]]" /></div>
-            <div>Suggester: <img width="16" :src="$store.state.icon.iconsByAddress[channel.participants[1]]" /></div>
-          </div>
+          />
         </div>
-        <div style="margin: 0px 4px">
+        <div style="margin: 0px 4px; max-width: 60%">
           <div style="margin: 0px 0px; display: flex" v-if="$store.state.scorched.channelsById[selectedChannelId]">
             <div style="word-break: break-all; border: 1px solid black; padding: 2px">
               <div>Channel ID: {{ selectedChannelId }}</div>
@@ -104,7 +101,10 @@
             :key="message.timestamp"
           />
         </div>
-        <div v-if="$store.state.scorched.channelsById[selectedChannelId]">
+        <div
+          v-if="$store.state.scorched.channelsById[selectedChannelId]"
+          style="width: 20%"
+        >
           <SignatureCell :channelId="selectedChannelId" />
           <StateCell
             v-for="state of states"
@@ -149,10 +149,19 @@ import {
 } from '@statechannels/nitro-protocol'
 import RegisterSuggester from './components/RegisterSuggester'
 import SuggesterMarket from './components/SuggesterMarket'
+import ChannelButton from './components/ChannelButton'
 
 @Component({
   name: 'Home',
-  components: { MessageCell, StateCell, NegotiateCell, SignatureCell, RegisterSuggester, SuggesterMarket, },
+  components: {
+    MessageCell,
+    StateCell,
+    NegotiateCell,
+    SignatureCell,
+    RegisterSuggester,
+    SuggesterMarket,
+    ChannelButton,
+   },
   metaInfo: {
     title: 'Scorched dev',
   },
