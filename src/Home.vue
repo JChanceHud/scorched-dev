@@ -31,17 +31,11 @@
         <button v-on:click="showingMarket = true">
           View Registered Suggesters
         </button>
-        <div spacer style="flex: 1" />
-        <div>
-          <div>Create new channel with Suggester</div>
-          <input type="text" placeholder="0x6e64a91e1F41bd069984716a806034881D5c9Da8" v-model="suggesterAddress" />
-          <button v-on:click="createChannel">Create Channel</button>
-        </div>
       </div>
       <div spacer style="height: 10px" />
       <div style="display: flex">
         <div
-          style="max-width: 200px; word-break: break-all; padding: 4px; border: 1px solid black"
+          style="width: 200px; word-break: break-all; padding: 4px; border: 1px solid black"
         >
           <div>Channels</div>
           <div

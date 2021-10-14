@@ -7,26 +7,31 @@
       v-for="suggester of $store.state.market.suggesters"
       style="border: 1px solid black; padding: 4px; display: flex; flex-direction: column; align-items: center"
     >
-    <div style="display: flex">
-      <img width="32" :src="$store.state.icon.iconsByAddress[suggester.address]" />
-      <div spacer style="width: 4px" />
-      <div>
-        <div>Name: {{ suggester.name }}</div>
-        <div>Bio: {{ suggester.bio }}</div>
+      <div style="display: flex">
+        <img width="32" :src="$store.state.icon.iconsByAddress[suggester.address]" />
+        <div spacer style="width: 4px" />
+        <div>
+          <div>Name: {{ suggester.name }}</div>
+          <div>Bio: {{ suggester.bio }}</div>
+        </div>
+      </div>
+      <div spacer style="height: 4px" />
+      <button v-on:click="createChannel(suggester.address)">Create Channel</button>
+      <div v-if="suggester.address === $store.state.wallet.activeAddress">
+        <div style="display: flex">
+          <input type="text" v-model="newName" :placeholder="suggester.name" />
+          <button v-on:click="updateName">Update</button>
+        </div>
+        <div style="display: flex">
+          <input type="text" v-model="newBio" :placeholder="suggester.bio" />
+          <button v-on:click="updateBio">Update</button>
+        </div>
       </div>
     </div>
-    <div spacer style="height: 4px" />
-    <button v-on:click="createChannel(suggester.address)">Create Channel</button>
-    <div v-if="suggester.address === $store.state.wallet.activeAddress">
-      <div style="display: flex">
-        <input type="text" v-model="newName" :placeholder="suggester.name" />
-        <button v-on:click="updateName">Update</button>
-      </div>
-      <div style="display: flex">
-        <input type="text" v-model="newBio" :placeholder="suggester.bio" />
-        <button v-on:click="updateBio">Update</button>
-      </div>
-    </div>
+    <div style="padding: 4px; border: 1px solid black; margin-top: 8px">
+      <div>Create channel with address</div>
+      <input type="text" placeholder="0x6e64a91e1F41bd069984716a806034881D5c9Da8" v-model="suggesterAddress" />
+      <button v-on:click="createChannel">Create Channel</button>
     </div>
   </Popup>
 </template>
