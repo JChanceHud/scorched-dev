@@ -56,7 +56,9 @@ export default class SuggesterMarket extends Vue {
   async createCustomChannel() {
     if (!/^0x[a-fA-F0-9]{40}$/.test(this.suggesterAddress)) return
     const channelId = await this.$store.dispatch('createChannel', this.suggesterAddress)
-    this.selectedChannelId = channelId
+    if (typeof this.onCreateChannel === 'function') {
+      this.onCreateChannel(channelId)
+    }
   }
 
   async updateName() {
@@ -78,8 +80,9 @@ export default class SuggesterMarket extends Vue {
   }
 
   async createChannel(suggesterAddress) {
+    const channelId = await this.$store.dispatch('createChannel', suggesterAddress)
     if (typeof this.onCreateChannel === 'function') {
-      this.onCreateChannel(suggesterAddress)
+      this.onCreateChannel(channelId)
     }
   }
 }

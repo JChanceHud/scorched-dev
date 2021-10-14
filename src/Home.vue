@@ -122,7 +122,7 @@
     <SuggesterMarket
       :onCancel="() => showingMarket = false"
       :visible="showingMarket"
-      :onCreateChannel="(addr) => createChannelFromMarket(addr)"
+      :onCreateChannel="(addr) => channelCreated(addr)"
     />
   </div>
 </template>
@@ -253,8 +253,7 @@ export default class Home extends Vue {
   showingRegister = false
   showingMarket = false
 
-  async createChannelFromMarket(addr) {
-    const channelId = await this.$store.dispatch('createChannel', addr)
+  async channelCreated(channelId) {
     this.showingMarket = false
     this.selectedChannelId = channelId
   }
