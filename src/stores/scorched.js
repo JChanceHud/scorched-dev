@@ -96,6 +96,7 @@ export default {
       }
     },
     authenticate: async ({ state, rootState, dispatch }) => {
+      if (+rootState.wallet.network.chainId !== 5) return
       const timestamp = `${+new Date()}`
       const msgParams = {
         domain: {

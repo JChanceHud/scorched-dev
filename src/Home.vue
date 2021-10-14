@@ -4,7 +4,10 @@
       <div>
         Scorched (<a href="https://goerli.etherscan.io/address/0x48ba949f5d6b360c0bbfad8dee26bd8da8649cf6" target="_blank">Görli</a>)
       </div>
-      <div v-if="$store.state.wallet.activeAddress" style="display: flex; flex-direction: column;">
+      <div
+        v-if="$store.state.wallet.activeAddress && +$store.state.wallet.network.chainId === 5"
+        style="display: flex; flex-direction: column;"
+      >
         <div>
           <div>Account: {{ $store.state.wallet.activeAddress }}</div>
         </div>
@@ -16,6 +19,11 @@
       </div>
       <div v-if="!$store.state.wallet.activeAddress">
         <button v-on:click="$store.dispatch('load')">Connect MetaMask</button>
+      </div>
+      <div v-if="+$store.state.wallet.network.chainId !== 5">
+        Incorrect network id: {{ $store.state.wallet.network.chainId }} ({{ $store.state.wallet.network.name }})
+        <br />
+        Please select Goerli network
       </div>
     </div>
     <div class="body">
@@ -226,19 +234,12 @@ export default class Home extends Vue {
   ethers = ethers
   messageText = ''
   selectedChannelId = ''
-  suggesterAddress = ''
   showingRegister = false
   showingMarket = false
 
   async createChannelFromMarket(addr) {
     const channelId = await this.$store.dispatch('createChannel', addr)
     this.showingMarket = false
-    this.selectedChannelId = channelId
-  }
-
-  async createChannel() {
-    if (!/^0x[a-fA-F0-9]{40}$/.test(this.suggesterAddress)) return
-    const channelId = await this.$store.dispatch('createChannel', this.suggesterAddress)
     this.selectedChannelId = channelId
   }
 

@@ -11,17 +11,20 @@ export default {
   mutations: {},
   actions: {
     loadSuggesters: async ({ state, rootState, dispatch }) => {
-      const market = new ethers.Contract(MARKET_ADDRESS, ScorchedMarketABI, rootState.wallet.signer)
-      const suggesterCount = +(await market.suggesterCount()).toString()
-      const promises = []
-      for (let x = 0; x < suggesterCount; x++) {
-        promises.push(market.suggesterInfoByIndex(x))
-      }
-      // slice the 0 address
-      state.suggesters = (await Promise.all(promises)).slice(1)
-        .map(([address, url, name, bio]) => ({ address, url, name, bio }))
-      for (const { address } of state.suggesters) {
-        dispatch('loadIcon', address, { root: true })
+      try {
+        const market = new ethers.Contract(MARKET_ADDRESS, ScorchedMarketABI, rootState.wallet.signer)
+        const suggesterCount = +(await market.suggesterCount()).toString()
+        const promises = []
+        for (let x = 0; x < suggesterCount; x++) {
+          promises.push(market.suggesterInfoByIndex(x))
+        }
+        // slice the 0 address
+        state.suggesters = (await Promise.all(promises)).slice(1)
+          .map(([address, url, name, bio]) => ({ address, url, name, bio }))
+        for (const { address } of state.suggesters) {
+          dispatch('loadIcon', address, { root: true })
+        }
+      } catch (err) {
       }
     },
     registerSuggester: async ({ state, rootState }, payload) => {

@@ -51,6 +51,13 @@ import { ScorchedMarketABI } from 'scorched'
 export default class SuggesterMarket extends Vue {
   newName = ''
   newBio = ''
+  suggesterAddress = ''
+
+  async createChannel() {
+    if (!/^0x[a-fA-F0-9]{40}$/.test(this.suggesterAddress)) return
+    const channelId = await this.$store.dispatch('createChannel', this.suggesterAddress)
+    this.selectedChannelId = channelId
+  }
 
   async updateName() {
     const { marketAddress } = this.$store.state.market
