@@ -24,7 +24,6 @@ export default {
     channels: [],
     channelsById: {},
     messagesByChannelId: {},
-    lastReadByChannelId: {},
     listenersByChannelId: {},
     auth: undefined,
     keepaliveTimer: null
@@ -228,7 +227,7 @@ export default {
         }
       })
     },
-    signAndSubmitState: async ({ rootState, state }, { channelId, state: _state }) => {
+    signAndSubmitState: async ({ rootState, state }, { channelId, state: _state, ...args }) => {
       const [signature] = await signStates(
         [_state],
         [rootState.wallet.signer],
@@ -239,6 +238,27 @@ export default {
         auth: state.auth,
         state: _state,
         signature,
+        ...args,
+      })
+    },
+    submitAnswer: async ({ rootState, state }, { channelId, answer }) => {
+      await state.client.send('channel.submitQueryAnswer', {
+        channelId,
+        auth: state.auth,
+        answer,
+      })
+    },
+    submitQuestion: async ({ state }, { channelId, question }) => {
+      await state.client.send('channel.submitQueryQuestion', {
+        channelId,
+        question,
+        auth: state.auth,
+      })
+    },
+    declineQuestion: async ({ state }, { channelId }) => {
+      await state.client.send('channel.submitQueryDecline', {
+        channelId,
+        auth: state.auth,
       })
     },
     createCheckpoint: async ({ rootState, state }, channelId) => {

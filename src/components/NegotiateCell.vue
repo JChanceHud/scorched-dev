@@ -25,12 +25,24 @@ import EtherAmountField from './EtherAmountField'
 @Component({
   name: 'NegotiateCell',
   components: { EtherAmountField, },
-  props: ['onSubmit']
+  props: ['onSubmit', 'defaultPayment', 'defaultAskerBurn', 'defaultSuggesterBurn']
 })
 export default class NegotiateCell extends Vue {
   payment = '0.01'
   askerBurn = '0.005'
   suggesterBurn = '0.005'
+
+  mounted() {
+    if (this.defaultPayment) {
+      this.payment = this.defaultPayment
+    }
+    if (this.defaultAskerBurn) {
+      this.askerBurn = this.defaultAskerBurn
+    }
+    if (this.defaultSuggesterBurn) {
+      this.suggesterBurn = this.defaultSuggesterBurn
+    }
+  }
 
   submit() {
     if (typeof this.onSubmit === 'function') {

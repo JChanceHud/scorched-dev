@@ -61,16 +61,16 @@
               <div style="display: flex; margin-bottom: 4px">
                 <img width="16" :src="$store.state.icon.iconsByAddress[channel.participants[0]]" />
                 <div spacer style="width: 4px" />
-                (asker)
+                (suggester)
                 <div spacer style="width: 4px" />
-                {{ askerBalance }} Ether
+                {{ suggesterBalance }} Ether
               </div>
               <div style="display: flex; margin-bottom: 4px">
                 <img width="16" :src="$store.state.icon.iconsByAddress[channel.participants[1]]" />
                 <div spacer style="width: 4px" />
-                (suggester)
+                (asker)
                 <div spacer style="width: 4px" />
-                {{ suggesterBalance }} Ether
+                {{ askerBalance }} Ether
               </div>
               <div style="display: flex">
                 <img width="16" :src="$store.state.icon.iconsByAddress[ethers.constants.AddressZero]" />
@@ -181,13 +181,13 @@ import ChannelButton from './components/ChannelButton'
     },
     askerBalance: function () {
       if (!this.channel || !this.channel.states.length) return 0
-      const amount = this.channel.states[this.channel.states.length - 1].outcome[0].allocationItems[0].amount
+      const amount = this.channel.states[this.channel.states.length - 1].outcome[0].allocationItems[1].amount
       const amountBN = ethers.BigNumber.from(amount)
       return ethers.utils.formatUnits(amountBN, 'ether')
     },
     suggesterBalance: function () {
       if (!this.channel || !this.channel.states.length) return 0
-      const amount = this.channel.states[this.channel.states.length - 1].outcome[0].allocationItems[1].amount
+      const amount = this.channel.states[this.channel.states.length - 1].outcome[0].allocationItems[0].amount
       const amountBN = ethers.BigNumber.from(amount)
       return ethers.utils.formatUnits(amountBN, 'ether')
     },
@@ -210,9 +210,9 @@ import ChannelButton from './components/ChannelButton'
     canWithdraw: function () {
       if (!this.channel) return false
       const latestState = this.channel.states[this.channel.states.length - 1]
-      const amIAsker = this.channel.participants.indexOf(ethers.utils.getAddress(this.$store.state.wallet.activeAddress)) === 0
+      const amIAsker = this.channel.participants.indexOf(ethers.utils.getAddress(this.$store.state.wallet.activeAddress)) === 1
       if (!latestState || latestState.turnNum < 4) return false
-      if (latestState.turnNum % 2 === (amIAsker ? 0 : 1)) {
+      if (latestState.turnNum % 2 === (amIAsker ? 1 : 0)) {
         // not our turn
         return false
       }
@@ -240,6 +240,11 @@ import ChannelButton from './components/ChannelButton'
   },
   watch: {
     selectedChannelId: function () {
+      if (this.selectedChannelId) {
+        this.$store.dispatch('markChannelRead', this.selectedChannelId)
+      }
+    },
+    messages: function () {
       if (this.selectedChannelId) {
         this.$store.dispatch('markChannelRead', this.selectedChannelId)
       }

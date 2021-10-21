@@ -9,6 +9,9 @@
     <div v-if="channelState === 1">
       Awaiting counterparty signature
     </div>
+    <div v-if="channelState === 21">
+      Waiting for suggester to answer your question!
+    </div>
     <div v-if="channelState === 2">
       How much would you like to deposit to the channel?
       <br />
@@ -29,22 +32,30 @@
       <button v-on:click="signPostDeposit">Sign</button>
     </div>
     <div v-if="channelState === 5">
-      Waiting for post deposit checkpoint transaction. Either party may send this transaction.
+      Ask a question!
       <br />
       <br />
-      Message your counterparty to decide who will send it!
-      <br />
-      <br />
-      <button v-on:click="depositCheckpoint">Send Transaction</button>
+      <textarea v-model="questionText" placeholder="Enter a question to ask the suggester" />
+      <button v-on:click="askQuestion">Ask</button>
     </div>
     <div v-if="channelState === 6">
       Propose a payment and burn for a query.
       <NegotiateCell
         :onSubmit="signNegotation"
       />
+      <button v-on:click="declineQuestion">Decline</button>
+    </div>
+    <div v-if="channelState === 16">
+      The suggester has proposed a rate for the query. You may accept, or propose a change to the rate.
+      <NegotiateCell
+        :defaultSuggesterBurn="ethers.utils.formatUnits(latestAppData.suggesterBurn, 'ether')"
+        :defaultAskerBurn="ethers.utils.formatUnits(latestAppData.askerBurn, 'ether')"
+        :defaultPayment="ethers.utils.formatUnits(latestAppData.payment, 'ether')"
+        :onSubmit="signNegotation"
+      />
     </div>
     <div v-if="channelState === 7">
-      A query rate has been proposed.
+      A rate has been agreed upon.
       <br />
       <br />
       <div>Payment: {{ ethers.utils.formatUnits(latestAppData.payment, 'ether') }} Ether</div>
@@ -57,8 +68,15 @@
         <button v-on:click="rejectRate">Decline</button>
       </div>
     </div>
+    <div v-if="channelState === 17">
+      Answer the question!
+      <br />
+      <br />
+      <textarea v-model="answerText" placeholder="Enter a quality answer to the question" />
+      <button v-on:click="answerQuestion">Answer</button>
+    </div>
     <div v-if="channelState === 8">
-      Your query has been accepted.
+      Your query has been answered.
       <br />
       <br />
       <div>Payment: {{ ethers.utils.formatUnits(latestAppData.payment, 'ether') }} Ether</div>
@@ -100,6 +118,7 @@ import {
   QueryStatus,
   ResponseStatus,
   createOutcome,
+  parseAppData,
 } from 'scorched'
 import NegotiateCell from './NegotiateCell'
 import EtherAmountField from './EtherAmountField'
@@ -124,6 +143,18 @@ import { getFixedPart, hashAppPart, encodeOutcome } from '@statechannels/nitro-p
       const channel = this.$store.state.scorched.channelsById[this.channelId]
       if (!channel) return {}
       return channel.balances
+    },
+    amIAsker: function () {
+      return this.channel.participants.indexOf(ethers.utils.getAddress(this.$store.state.wallet.activeAddress)) === 1
+    },
+    latestQuery: function () {
+      const { channel } = this
+      if (!channel || !channel.queries || !channel.queries.length) return
+      return channel.queries[channel.queries.length - 1]
+    },
+    latestAppData: function () {
+      if (this.channel.states.length < 5) return {}
+      return parseAppData(this.channel.states[this.channel.states.length - 1].appData)
     }
   },
   watch: {
@@ -138,25 +169,50 @@ import { getFixedPart, hashAppPart, encodeOutcome } from '@statechannels/nitro-p
 export default class SignatureCell extends Vue {
   ethers = ethers
   channelState = -1
-  latestAppData = {}
   depositAmount = '0'
+  questionText = ''
+  answerText = ''
   // Possible states
   // 0 = awaiting counterparty deposit
   // 1 = awaiting counterparty signature
+  // 21 = awaiting answer to question
   // 2 = signing pre deposit state
   // 3 = performing deposit
   // 4 = signing post deposit state
-  // 5 = awaiting post deposit checkpoint tx
-  // 6 = proposing a new rate (asker)
+  // 5 = asking a question (asker) (no signature)
+  // 15 = asking a question (asker) (with signature/rate)
+  // 6 = proposing a rate for a query (or declining without sig) (suggester)
+  // 16 = confirming the rate (asker)
   // 7 = accepting or rejecting an ask (suggester)
-  //    if rejected allow proposing a different rate?
+  // 17 = providing an answer
   // 8 = paying or burning (asker)
+  // asking a new question
   // 9 = withdrawal was initiated
   // 10 = withdrawal signed, ready for l1 broadcast
   // 11 = withdrawal complete
 
   async mounted() {
     await this.calculateState()
+  }
+
+  async askQuestion() {
+    await this.$store.dispatch('submitQuestion', {
+      channelId: this.channel.id,
+      question: this.questionText,
+    })
+  }
+
+  async declineQuestion() {
+    await this.$store.dispatch('declineQuestion', {
+      channelId: this.channel.id,
+    })
+  }
+
+  async answerQuestion() {
+    await this.$store.dispatch('submitAnswer', {
+      channelId: this.channel.id,
+      answer: this.answerText,
+    })
   }
 
   async finalize() {
@@ -167,7 +223,7 @@ export default class SignatureCell extends Vue {
     const contract = new ethers.Contract(contractAddress, ScorchedABI, this.$store.state.wallet.signer)
     const adjudicatorAddress = await contract.assetHolder()
     const adjudicator = new ethers.Contract(adjudicatorAddress, AdjudicatorABI, this.$store.state.wallet.signer)
-    const amIAsker = channel.participants.indexOf(ethers.utils.getAddress(this.$store.state.wallet.activeAddress)) === 0
+    const { amIAsker } = this
     const sigs = channel.signatures.slice(-2)
     const orderedSigs = latestState.turnNum % 2 === 0 ? sigs : [...sigs].reverse()
     const tx = await adjudicator.concludeAndTransferAllAssets(
@@ -197,7 +253,7 @@ export default class SignatureCell extends Vue {
     const { channel } = this
     if (!channel) return
     const { baseState } = channel
-    const amIAsker = channel.participants.indexOf(ethers.utils.getAddress(this.$store.state.wallet.activeAddress)) === 0
+    const { amIAsker } = this
     const myAmount = ethers.utils.parseEther(this.depositAmount)
     const prevOutcome = channel.states.length > 0 && channel.states[0].outcome[0].allocationItems[0].amount
     const contractAddress = baseState.appDefinition
@@ -207,8 +263,8 @@ export default class SignatureCell extends Vue {
       ...baseState,
       turnNum: channel.states.length,
       outcome: createOutcome({
-        [channel.participants[0]]: amIAsker ? myAmount : prevOutcome,
-        [channel.participants[1]]: amIAsker ? '0' : myAmount,
+        [channel.participants[0]]: amIAsker ? prevOutcome : myAmount,
+        [channel.participants[1]]: amIAsker ? myAmount : '0',
         [ethers.constants.AddressZero]: 0,
       }, adjudicatorAddress)
     }
@@ -227,15 +283,15 @@ export default class SignatureCell extends Vue {
     const contract = new ethers.Contract(contractAddress, ScorchedABI, this.$store.state.wallet.signer)
     const adjudicatorAddress = await contract.assetHolder()
     const adjudicator = new ethers.Contract(adjudicatorAddress, AdjudicatorABI, this.$store.state.wallet.signer)
-    const amIAsker = channel.participants.indexOf(ethers.utils.getAddress(this.$store.state.wallet.activeAddress)) === 0
+    const { amIAsker } = this
     const depositedAmount = await adjudicator.holdings(ethers.constants.AddressZero, channel.id)
     const tx = await adjudicator.deposit(
       ethers.constants.AddressZero,
       channel.id,
       depositedAmount,
-      allocationItems[amIAsker ? 0 : 1].amount,
+      allocationItems[amIAsker ? 1 : 0].amount,
       {
-        value: allocationItems[amIAsker ? 0 : 1].amount,
+        value: allocationItems[amIAsker ? 1 : 0].amount,
       }
     )
     await tx.wait()
@@ -386,18 +442,18 @@ export default class SignatureCell extends Vue {
     const appDataBytes = encodeAppData(appData)
     await this.$store.dispatch('signAndSubmitState', {
       channelId: this.channelId,
+      question: this.questionText,
       state: {
         ...lastState,
         appData: appDataBytes,
         turnNum: this.channel.states.length,
-      }
+      },
     })
   }
 
   async calculateState() {
     // determine the state
     this.channelState = -1
-    this.latestAppData = {}
     const { channel } = this
     if (!channel) return
     const { baseState } = channel
@@ -405,23 +461,23 @@ export default class SignatureCell extends Vue {
     const contract = new ethers.Contract(contractAddress, ScorchedABI, this.$store.state.wallet.signer)
     const adjudicatorAddress = await contract.assetHolder()
     const adjudicator = new ethers.Contract(adjudicatorAddress, AdjudicatorABI, this.$store.state.wallet.signer)
-    const amIAsker = channel.participants.indexOf(ethers.utils.getAddress(this.$store.state.wallet.activeAddress)) === 0
-    const askerIsActive = channel.states.length % 2 === 0
+    const { amIAsker } = this
+    const askerIsActive = channel.states.length % 2 === 1
     if (channel.states.length === 0) {
       // first prefund state
       if (amIAsker) {
-        this.channelState = 2
-      } else {
         this.channelState = 1
+      } else {
+        this.channelState = 2
       }
       return
     }
     if (channel.states.length === 1) {
       // first prefund state
       if (amIAsker) {
-        this.channelState = 1
-      } else {
         this.channelState = 2
+      } else {
+        this.channelState = 1
       }
       return
     }
@@ -430,11 +486,12 @@ export default class SignatureCell extends Vue {
     const secondToLastState = channel.states[channel.states.length - 2]
 
     const depositedAmount = await adjudicator.holdings(ethers.constants.AddressZero, channel.id)
+    // TODO: handle 0 balance deposits (for suggester possibly)
     if (secondToLastState.isFinal && secondToLastState.turnNum === lastState.turnNum) {
       if (depositedAmount.gt(0)) {
-        this.channelState = 10
-      } else {
         this.channelState = 11
+      } else {
+        this.channelState = 10
       }
       return
     }
@@ -451,18 +508,18 @@ export default class SignatureCell extends Vue {
       return acc.add(amount)
     }, ethers.BigNumber.from(0))
     if (depositedAmount.eq(0)) {
-      // asker should deposit
+      // suggester should deposit
       if (amIAsker) {
-        this.channelState = 3
-      } else {
         this.channelState = 0
+      } else {
+        this.channelState = 3
       }
       return
     } else if (depositedAmount.lt(targetDeposit)) {
       if (amIAsker) {
-        this.channelState = 0
-      } else {
         this.channelState = 3
+      } else {
+        this.channelState = 0
       }
       return
     }
@@ -483,26 +540,31 @@ export default class SignatureCell extends Vue {
       }
       return
     }
-    // if we're here then the channel has been deposited and signed
-    // need to check the latest checkpoint
-    // UPDATE: theoretically don't need this on chain tx
-    // const { finalizesAt, fingerprint, turnNumRecord } = await adjudicator.unpackStatus(channel.id)
-    // if (turnNumRecord === 0) {
-    //   // need to run the post deposit checkpoint
-    //   this.channelState = 5
-    //   return
-    // }
-    // otherwise we're ready to use the application
-    if (channel.states.length === 4) {
-      // need to propose a rate
+    // get the latest query, if one exists
+    const { latestQuery } = this
+    // 3 is from the QueryState enum
+    if (!latestQuery || latestQuery.state === 3) {
+      // need to propose a query
       if (amIAsker) {
-        this.channelState = 6
+        this.channelState = 5
       } else {
         this.channelState = 1
       }
       return
     }
-    // if we're past turn 3 we have a rate and are ready to use the app
+
+    // otherwise we have an active query
+    // short circuit for early states to avoid parsing AppData
+    if (channel.states.length === 4) {
+      // suggester needs to propose a rate
+      if (amIAsker) {
+        this.channelState = 1
+      } else {
+        this.channelState = 6
+      }
+      return
+    }
+
     // let's look at the latest state
     const [[
       payment,
@@ -512,16 +574,74 @@ export default class SignatureCell extends Vue {
       queryStatus,
       responseStatus,
     ]] = decodeAppData(lastState.appData)
-    this.latestAppData = {
-      payment,
-      suggesterBurn,
-      askerBurn,
-      status,
-      queryStatus,
-      responseStatus,
+    let lastTwoStateRatesMatch = false
+    if (channel.states.length > 5) {
+      const {
+        payment: _payment,
+        suggesterBurn: _suggesterBurn,
+        askerBurn: _askerBurn,
+        status: _status
+      } = parseAppData(secondToLastState.appData)
+      lastTwoStateRatesMatch = _payment.toString() === payment.toString() &&
+        _suggesterBurn.toString() === suggesterBurn.toString() &&
+        _askerBurn.toString() === askerBurn.toString() &&
+        _status === AppStatus.Negotiate
+    }
+    if (
+      latestQuery.state === 0 &&
+      status !== AppStatus.Answer &&
+      !askerIsActive &&
+      !lastTwoStateRatesMatch
+    ) {
+      // suggester needs to propose a rate
+      // suggester can short circuit and accept the previous rate?
+      if (amIAsker) {
+        this.channelState = 1
+      } else {
+        this.channelState = 6
+      }
+      return
+    }
+    if (latestQuery.state === 0 && askerIsActive && status === AppStatus.Negotiate) {
+      // asker needs to confirm the rate
+      if (amIAsker) {
+        this.channelState = 16
+      } else {
+        this.channelState = 1
+      }
+      return
     }
 
-    if (askerIsActive && queryStatus === QueryStatus.Accepted) {
+    // otherwise we have agreement on a rate
+    // now the suggester needs to either accept or decline the query
+
+    if (
+      status === AppStatus.Negotiate &&
+      lastTwoStateRatesMatch &&
+      !askerIsActive
+    ) {
+      if (amIAsker) {
+        this.channelState = 1
+      } else {
+        this.channelState = 7
+      }
+      return
+    }
+
+    if (
+      queryStatus === QueryStatus.Accepted &&
+      latestQuery.state === 1
+    ) {
+      // suggester needs to provide an answer
+      if (amIAsker) {
+        this.channelState = 21
+      } else {
+        this.channelState = 17
+      }
+      return
+    }
+
+    if (askerIsActive && queryStatus === QueryStatus.Accepted && latestQuery.state === 2) {
       // ready to pay or burn
       if (amIAsker) {
         this.channelState = 8
@@ -529,20 +649,15 @@ export default class SignatureCell extends Vue {
         this.channelState = 1
       }
       return
-    } else if (askerIsActive && queryStatus === QueryStatus.Declined) {
-      // ready to propose a new rate
+    }
+
+    if (askerIsActive && queryStatus === QueryStatus.Declined) {
+      // asker needs to ask another question AND propose a rate
+      // TODO: discard/overwrite decline states
       if (amIAsker) {
-        this.channelState = 6
+        this.channelState = 15
       } else {
         this.channelState = 1
-      }
-      return
-    } else if (!askerIsActive) {
-      // suggester is active, they may accept or reject the proposed query
-      if (amIAsker) {
-        this.channelState = 1
-      } else {
-        this.channelState = 7
       }
       return
     }

@@ -7,7 +7,7 @@
         v-if="!nameForAsker"
         width="16"
         height="auto"
-        :src="$store.state.icon.iconsByAddress[channel.participants[0]]"
+        :src="$store.state.icon.iconsByAddress[channel.participants[1]]"
       />
       <div v-if="nameForAsker">{{ nameForAsker }}</div>
     </div>
@@ -18,7 +18,7 @@
         v-if="!nameForSuggester"
         width="16"
         height="auto"
-        :src="$store.state.icon.iconsByAddress[channel.participants[1]]"
+        :src="$store.state.icon.iconsByAddress[channel.participants[0]]"
       />
       <div v-if="nameForSuggester">{{ nameForSuggester }}</div>
     </div>
@@ -40,7 +40,7 @@ import Component from 'vue-class-component'
       return this.$store.state.scorched.channelsById[this.channelId]
     },
     nameForAsker: function () {
-      const [ asker ] = this.channel.participants
+      const [ , asker ] = this.channel.participants
       if (asker === this.$store.state.wallet.activeAddress) {
         return '(me)'
       } else if (this.$store.state.market.suggestersByAddress[asker]) {
@@ -48,7 +48,7 @@ import Component from 'vue-class-component'
       }
     },
     nameForSuggester: function () {
-      const [ , suggester ] = this.channel.participants
+      const [ suggester ] = this.channel.participants
       if (suggester === this.$store.state.wallet.activeAddress) {
         return '(me)'
       } else if (this.$store.state.market.suggestersByAddress[suggester]) {
