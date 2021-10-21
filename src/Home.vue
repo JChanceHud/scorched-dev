@@ -87,11 +87,12 @@
             </div>
           </div>
           <div style="margin: 4px 0px" v-if="$store.state.scorched.channelsById[selectedChannelId]">
-            <input
+            <textarea
               type="text"
               placeholder="Send a message..."
               v-model="messageText"
               v-on:keyup.enter="sendMessage"
+              style="width: 80%"
             />
             <button v-on:click="sendMessage">Send</button>
           </div>
