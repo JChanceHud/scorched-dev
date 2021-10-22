@@ -8,6 +8,7 @@ import WalletStore from './stores/wallet'
 import ScorchedStore from './stores/scorched'
 import AddressIconStore from './stores/address-icon'
 import MarketStore from './stores/market'
+import NotificationStore from './stores/notification'
 
 export function createApp(cookie) {
   Vue.use(VueRouter)
@@ -26,6 +27,7 @@ export function createApp(cookie) {
       scorched: ScorchedStore,
       icon: AddressIconStore,
       market: MarketStore,
+      notification: NotificationStore,
     },
   })
   const router = new VueRouter({
@@ -42,5 +44,6 @@ export function createApp(cookie) {
   return { app, router, store }
 }
 
-const { app } = createApp()
+const { app, store } = createApp()
+store.dispatch('load')
 app.$mount('#app')

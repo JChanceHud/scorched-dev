@@ -174,7 +174,7 @@ export default {
         await dispatch('loadChannelMessages', id)
       }
     },
-    loadChannelMessages: async ({ state, commit, }, channelId) => {
+    loadChannelMessages: async ({ state, commit, dispatch }, channelId) => {
       // subscribe to future messages
       if (!state.listenersByChannelId[channelId]) {
         const subscriptionId = uuid.v4()
@@ -185,6 +185,11 @@ export default {
               channelId: data.channelId,
               messages: data.message,
             })
+            if (Array.isArray(message)) {
+              dispatch('postNotification', `${message.length} new message${message.length === 1 ? 's' : ''}`)
+            } else {
+              dispatch('postNotification', message.text)
+            }
           }
           if (_state && signature) {
             commit('ingestState', { channelId, state: _state, signature })

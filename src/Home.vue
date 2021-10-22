@@ -12,6 +12,9 @@
           <div>Account: {{ $store.state.wallet.activeAddress }}</div>
         </div>
         <div style="display: flex; align-items: center; justify-content: flex-end">
+          <button v-on:click="$store.dispatch('requestNotificationPermission')">
+            Enable Notifications
+          </button>
           <button v-on:click="showingRegister = true">Register Suggester</button>
           <div spacer style="width: 8px" />
           <img width="32" height="auto" :src="$store.state.icon.iconsByAddress[$store.state.wallet.activeAddress]" />
