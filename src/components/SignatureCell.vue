@@ -225,7 +225,7 @@ export default class SignatureCell extends Vue {
     const adjudicator = new ethers.Contract(adjudicatorAddress, AdjudicatorABI, this.$store.state.wallet.signer)
     const { amIAsker } = this
     const sigs = channel.signatures.slice(-2)
-    const orderedSigs = latestState.turnNum % 2 === 0 ? sigs : [...sigs].reverse()
+    const orderedSigs = latestState.turnNum % 2 === 1 ? sigs : [...sigs].reverse()
     const tx = await adjudicator.concludeAndTransferAllAssets(
       latestState.turnNum,
       getFixedPart(latestState),
@@ -516,14 +516,14 @@ export default class SignatureCell extends Vue {
     // TODO: handle 0 balance deposits (for suggester possibly)
     if (secondToLastState.isFinal && secondToLastState.turnNum === lastState.turnNum) {
       if (depositedAmount.gt(0)) {
-        this.channelState = 11
-      } else {
         this.channelState = 10
+      } else {
+        this.channelState = 11
       }
       return
     }
     if (lastState.isFinal) {
-      if (askerIsActive && amIAsker) {
+      if (!askerIsActive && !amIAsker) {
         this.channelState = 9
       } else {
         this.channelState = 1
