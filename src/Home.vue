@@ -143,6 +143,7 @@ import {
   QueryStatus,
   ResponseStatus,
   decodeAppData,
+  parseAppData,
 } from 'scorched'
 import MessageCell from './components/MessageCell'
 import StateCell from './components/StateCell'
@@ -219,7 +220,7 @@ import ChannelButton from './components/ChannelButton'
       const latestState = this.channel.states[this.channel.states.length - 1]
       const amIAsker = this.channel.participants.indexOf(ethers.utils.getAddress(this.$store.state.wallet.activeAddress)) === 1
       if (!latestState || latestState.turnNum < 4) return false
-      if (latestState.turnNum % 2 === (amIAsker ? 1 : 0)) {
+      if (latestState.turnNum % 2 === (amIAsker ? 0 : 1)) {
         // not our turn
         return false
       }
@@ -227,14 +228,7 @@ import ChannelButton from './components/ChannelButton'
         // let the signature cell handle it
         return false
       }
-      const [[
-        payment,
-        suggesterBurn,
-        askerBurn,
-        status,
-        queryStatus,
-        responseStatus,
-      ]] = decodeAppData(latestState.appData)
+      const { status, queryStatus } = parseAppData(latestState.appData)
       if (
         +ethers.BigNumber.from(status).toString() === AppStatus.Answer &&
         +ethers.BigNumber.from(queryStatus).toString() === QueryStatus.Accepted

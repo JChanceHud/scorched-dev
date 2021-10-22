@@ -262,11 +262,20 @@ export default class SignatureCell extends Vue {
     const state = {
       ...baseState,
       turnNum: channel.states.length,
-      outcome: createOutcome({
-        [channel.participants[0]]: amIAsker ? prevOutcome : myAmount,
-        [channel.participants[1]]: amIAsker ? myAmount : '0',
-        [ethers.constants.AddressZero]: 0,
-      }, adjudicatorAddress)
+      outcome: createOutcome([
+        {
+          address: channel.participants[0],
+          amount: amIAsker ? prevOutcome : myAmount,
+        },
+        {
+          address: channel.participants[1],
+          amount: amIAsker ? myAmount : '0',
+        },
+        {
+          address: ethers.constants.AddressZero,
+          amount: 0,
+        },
+      ], adjudicatorAddress)
     }
     await this.$store.dispatch('signAndSubmitState', {
       channelId: channel.id,
@@ -344,8 +353,8 @@ export default class SignatureCell extends Vue {
     }
     const appDataBytes = encodeAppData(appData)
     const lastState = this.channel.states[this.channel.states.length - 1]
-    const askerBalance = lastState.outcome[0].allocationItems[0].amount
-    const suggesterBalance = lastState.outcome[0].allocationItems[1].amount
+    const askerBalance = lastState.outcome[0].allocationItems[1].amount
+    const suggesterBalance = lastState.outcome[0].allocationItems[0].amount
     const beneficiaryBalance = lastState.outcome[0].allocationItems[2].amount
     const askerSpend = ethers.BigNumber.from(payment).gt(askerBurn) ? payment : askerBurn
     const askerRefund = shouldPay ? askerSpend.sub(payment) : askerSpend.sub(askerBurn)
@@ -353,11 +362,20 @@ export default class SignatureCell extends Vue {
     const contractAddress = lastState.appDefinition
     const contract = new ethers.Contract(contractAddress, ScorchedABI, this.$store.state.wallet.signer)
     const adjudicatorAddress = await contract.assetHolder()
-    const outcome = createOutcome({
-      [this.channel.participants[0]]: ethers.BigNumber.from(askerBalance).add(askerRefund),
-      [this.channel.participants[1]]: ethers.BigNumber.from(suggesterBalance).add(suggesterRefund),
-      [ethers.constants.AddressZero]: ethers.BigNumber.from(beneficiaryBalance).sub(askerRefund).sub(suggesterRefund),
-    }, adjudicatorAddress)
+    const outcome = createOutcome([
+      {
+        address: this.channel.participants[0],
+        amount: ethers.BigNumber.from(suggesterBalance).add(suggesterRefund),
+      },
+      {
+        address: this.channel.participants[1],
+        amount: ethers.BigNumber.from(askerBalance).add(askerRefund),
+      },
+      {
+        address: ethers.constants.AddressZero,
+        amount: ethers.BigNumber.from(beneficiaryBalance).sub(askerRefund).sub(suggesterRefund),
+      },
+    ], adjudicatorAddress)
     await this.$store.dispatch('signAndSubmitState', {
       channelId: this.channelId,
       state: {
@@ -397,18 +415,27 @@ export default class SignatureCell extends Vue {
     }
     const appDataBytes = encodeAppData(appData)
     const lastState = this.channel.states[this.channel.states.length - 1]
-    const askerBalance = lastState.outcome[0].allocationItems[0].amount
-    const suggesterBalance = lastState.outcome[0].allocationItems[1].amount
+    const askerBalance = lastState.outcome[0].allocationItems[1].amount
+    const suggesterBalance = lastState.outcome[0].allocationItems[0].amount
     const beneficiaryBalance = lastState.outcome[0].allocationItems[2].amount
     const askerSpend = ethers.BigNumber.from(payment).gt(askerBurn) ? payment : askerBurn
     const contractAddress = lastState.appDefinition
     const contract = new ethers.Contract(contractAddress, ScorchedABI, this.$store.state.wallet.signer)
     const adjudicatorAddress = await contract.assetHolder()
-    const outcome = acceptOrDecline ? createOutcome({
-      [this.channel.participants[0]]: ethers.BigNumber.from(askerBalance).sub(askerSpend),
-      [this.channel.participants[1]]: ethers.BigNumber.from(suggesterBalance).sub(suggesterBurn),
-      [ethers.constants.AddressZero]: ethers.BigNumber.from(beneficiaryBalance).add(askerSpend).add(suggesterBurn),
-    }, adjudicatorAddress) : lastState.outcome
+    const outcome = acceptOrDecline ? createOutcome([
+      {
+        address: this.channel.participants[0],
+        amount: ethers.BigNumber.from(suggesterBalance).sub(suggesterBurn),
+      },
+      {
+        address: this.channel.participants[1],
+        amount: ethers.BigNumber.from(askerBalance).sub(askerSpend),
+      },
+      {
+        address: ethers.constants.AddressZero,
+        amount: ethers.BigNumber.from(beneficiaryBalance).add(askerSpend).add(suggesterBurn),
+      },
+    ], adjudicatorAddress) : lastState.outcome
     await this.$store.dispatch('signAndSubmitState', {
       channelId: this.channelId,
       state: {
@@ -425,10 +452,10 @@ export default class SignatureCell extends Vue {
     const lastState = this.channel.states[this.channel.states.length - 1]
     const [{allocationItems}] = lastState.outcome
     const maxAskerCost = ethers.BigNumber.from(payment).gt(askerBurn) ? ethers.BigNumber.from(payment) : ethers.BigNumber.from(askerBurn)
-    if (maxAskerCost.gt(allocationItems[0].amount)) {
+    if (maxAskerCost.gt(allocationItems[1].amount)) {
       throw new Error('Asker does not have enough balance')
     }
-    if (ethers.BigNumber.from(suggesterBurn).gt(allocationItems[1].amount)) {
+    if (ethers.BigNumber.from(suggesterBurn).gt(allocationItems[0].amount)) {
       throw new Error('Suggester does not have enough balance')
     }
     const appData = {
