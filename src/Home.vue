@@ -163,8 +163,11 @@ import ChannelButton from './components/ChannelButton'
     SuggesterMarket,
     ChannelButton,
    },
-  metaInfo: {
-    title: 'Scorched dev',
+  metaInfo: function () {
+    const { totalUnreadCount } = this.$store.state.scorched
+    return {
+      title: totalUnreadCount === 0 ? 'Scorched dev' : `${totalUnreadCount} unread message${totalUnreadCount === 1 ? '' : 's'}`,
+    }
   },
   computed: {
     states: function () {

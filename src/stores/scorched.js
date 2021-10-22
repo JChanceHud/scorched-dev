@@ -25,6 +25,7 @@ export default {
     channelsById: {},
     messagesByChannelId: {},
     listenersByChannelId: {},
+    totalUnreadCount: 0,
     auth: undefined,
     keepaliveTimer: null
   },
@@ -55,7 +56,12 @@ export default {
         ...state.channelsById,
         [channelId]: channel,
       }
-    }
+    },
+    calculateTotalUnreadCount: (state) => {
+      state.totalUnreadCount = Object.keys(state.channelsById).reduce((total, channelId) => {
+        return total + (state.channelsById[channelId].unreadCount || 0)
+      }, 0)
+    },
   },
   actions: {
     connect: async ({ state, dispatch }, url) => {
@@ -149,7 +155,7 @@ export default {
         auth: state.auth,
       })
     },
-    loadChannels: async ({ state, dispatch, rootState }) => {
+    loadChannels: async ({ state, dispatch, rootState, commit }) => {
       if (!state.client || !state.connected) return
       const { data } = await state.client.send('channel.retrieve', {
         auth: state.auth,
@@ -163,6 +169,7 @@ export default {
       state.channelsById = [...data].reduce((acc, channel) => {
         return { ...acc, [channel.id]: channel }
       }, {})
+      commit('calculateTotalUnreadCount')
       for (const { id } of data) {
         await dispatch('loadChannelMessages', id)
       }
@@ -197,6 +204,7 @@ export default {
               ...state.channelsById,
               [channel.id]: channel,
             }
+            commit('calculateTotalUnreadCount')
           }
         })
         const { data: subscription } = await state.client.send('channel.subscribe', {
@@ -295,7 +303,7 @@ export default {
       )
       await tx.wait()
     },
-    markChannelRead: async ({ state }, channelId) => {
+    markChannelRead: async ({ state, commit }, channelId) => {
       const channel = state.channelsById[channelId]
       if (!channel) throw new Error(`Unable to find channel by id "${channelId}"`)
       await state.client.send('channel.markRead', {
@@ -309,6 +317,7 @@ export default {
           unreadCount: 0,
         }
       }
+      commit('calculateTotalUnreadCount')
     }
   },
 }
